@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barbearia Capitão — Marcações</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0A0A; --surface:#141414; --surface2:#1E1E1E; --border:#2A2A2A;
+    --accent:#B8952A; --accent-light:#D4AF5A; --accent-dim:rgba(184,149,42,.16);
+    --text:#EEEEEE; --muted:#999999; --muted2:#555555; --btn-fg:#0A0A0A;
+    --pending:#8B2E2E; --pending-bg:rgba(139,46,46,.16); --confirmed:#5C7A5C; --confirmed-bg:rgba(92,122,92,.16);
+    --danger:#E08A8A; --ok:#9CC09C;
+    --display:'Bebas Neue',Impact,sans-serif; --mono:'IBM Plex Mono',Menlo,monospace; --sans:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  button{font:inherit;cursor:pointer;background:none;border:0;color:inherit}
+  input{font:inherit;color:var(--text)}
+  .app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+  .view{display:none;flex-direction:column;flex:1}
+  .view.active{display:flex}
+
+  /* Topbar */
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:22px 20px 16px;border-bottom:1px solid var(--border)}
+  .brand{font-family:var(--display);font-size:28px;letter-spacing:1.5px;color:var(--accent);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand-sub{font-size:11px;letter-spacing:2px;color:var(--muted2);font-weight:500;margin-top:2px}
+  .logo{width:46px;height:46px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:22px;box-shadow:0 0 8px rgba(184,149,42,.25);flex-shrink:0;margin-left:10px}
+
+  .content{flex:1;padding:20px}
+  h2{font-family:var(--display);font-size:22px;letter-spacing:.5px;font-weight:400;line-height:1.1}
+  h2.small{font-size:18px}
+  .lead{font-size:13px;color:var(--muted2);margin-top:4px;margin-bottom:8px;line-height:1.5}
+  .label{display:block;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent);font-weight:600;margin:18px 0 7px}
+
+  .input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;outline:none;color:var(--text)}
+  .input:focus{border-color:var(--accent)}
+  .input::placeholder{color:var(--muted2)}
+  .input.mono{font-family:var(--mono)}
+  input[type=date].input,input[type=time].input{color-scheme:dark}
+
+  .btn{width:100%;border-radius:10px;padding:14px;font-weight:700;font-size:15px;background:var(--accent);color:var(--btn-fg)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .ghost{width:100%;border-radius:10px;padding:12px;border:1px solid var(--border);color:var(--muted);font-weight:600;font-size:14px;background:transparent}
+  .ghost:hover{border-color:var(--muted2)}
+  .sm{width:auto;padding:7px 11px;font-size:12px;border-radius:8px;border:1px solid var(--border);color:var(--muted);font-weight:600}
+  .sm.accent{border-color:rgba(201,161,74,.4);color:var(--accent)}
+  .sm.danger,.ghost.danger{border-color:rgba(139,46,46,.45);color:var(--danger)}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  .between{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+
+  .pill{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 10px;text-align:center;color:var(--muted);font-weight:600;transition:border-color .12s}
+  .pill small{display:block;font-weight:400;font-size:11px;color:var(--muted2);margin-top:2px}
+  .pill.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+  .pill.on small{color:var(--accent);opacity:.8}
+  .chip{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 13px;font-size:13px;color:var(--muted)}
+  .chip.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+  .wrap{display:flex;flex-wrap:wrap;gap:8px}
+
+  .days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+  .day{flex:0 0 58px;height:66px;border-radius:10px;background:var(--surface);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text)}
+  .day span{font-size:10px;letter-spacing:.5px;color:var(--muted2)}
+  .day b{font-family:var(--display);font-size:20px;font-weight:400;margin-top:2px}
+  .day.on{background:var(--accent-dim);border-color:var(--accent)}
+  .day.on span,.day.on b{color:var(--accent)}
+
+  .period{margin-top:8px;padding:13px 14px;border-radius:10px;background:var(--surface);border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;width:100%;color:var(--text);font-weight:600}
+  .period .n{font-family:var(--mono);font-size:12px;color:var(--muted2);font-weight:400}
+  .period.open{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+  .period.open .n{color:var(--accent)}
+  .period:disabled{opacity:.45;cursor:default}
+  .slot{padding:11px 0;border-radius:9px;background:var(--surface);border:1px solid var(--border);font-family:var(--mono);font-size:13px;color:var(--text);text-align:center}
+  .slot.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+  .err{color:var(--danger);font-size:12px;margin-top:10px;min-height:0}
+  .empty{color:var(--muted2);font-size:13px;text-align:center;padding:14px 0}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:14px;overflow:hidden}
+  .card .in{padding:18px}
+  .ticket-stripe{height:6px;background:repeating-linear-gradient(90deg,var(--pending) 0 12px,var(--accent) 12px 24px)}
+  .code{font-family:var(--mono);font-size:11px;color:var(--muted2);letter-spacing:1px}
+  .name{font-family:var(--display);font-size:22px;letter-spacing:.5px;margin-top:6px;line-height:1.1}
+  .phone{font-size:13px;color:var(--muted2)}
+  .badge{display:inline-block;margin-top:8px;padding:5px 11px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.6px}
+  .badge.pending{background:var(--pending-bg);color:var(--danger)}
+  .badge.confirmed{background:var(--confirmed-bg);color:var(--ok)}
+  .divider{height:1px;background:var(--border);margin:14px 0 12px}
+  .fields{display:flex;justify-content:space-between}
+  .f label{display:block;font-size:11px;letter-spacing:1px;color:var(--muted2);text-transform:uppercase}
+  .f div{font-family:var(--mono);font-size:15px;margin-top:3px}
+
+  .tabs{display:flex;gap:14px;border-bottom:1px solid var(--border);margin:16px 0 18px}
+  .tab{padding-bottom:10px;font-size:13px;font-weight:600;color:var(--muted2);border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab.on{color:var(--accent);border-color:var(--accent)}
+
+  /* Agenda */
+  .agenda-head{display:flex;align-items:center;gap:8px}
+  .agenda-head h3{flex:1;text-align:center;font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:.5px}
+  .agenda-count{text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted2);margin:10px 0 16px}
+  .hint{font-size:11px;color:var(--muted2);line-height:1.4;margin:8px 0 14px}
+  .grid{position:relative;user-select:none;touch-action:pan-y}
+  .hline{position:absolute;left:0;right:0;display:flex;align-items:center;gap:6px}
+  .hline span{width:42px;text-align:right;font-family:var(--mono);font-size:10px;color:var(--muted2)}
+  .hline i{flex:1;height:1px;background:var(--border)}
+  .lunch{position:absolute;left:48px;right:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted2)}
+  .now{position:absolute;left:48px;right:0;height:2px;background:var(--accent);z-index:3}
+  .block{position:absolute;left:56px;right:0;border-radius:9px;padding:6px 10px 6px 22px;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:grab;z-index:2;touch-action:none}
+  .block.pending{background:var(--pending-bg);border-left-color:var(--pending)}
+  .block.confirmed{background:var(--confirmed-bg);border-left-color:var(--confirmed)}
+  .block.dragging{box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:5;cursor:grabbing}
+  .block .t{font-family:var(--mono);font-size:10px;color:var(--muted2)}
+  .block .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .block .sv{font-size:11px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* Sheets & toast */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:50;padding:16px}
+  .overlay.open{display:flex}
+  .sheet{width:100%;max-width:448px;max-height:92vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px}
+  .sheet .label:first-of-type{margin-top:12px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--accent);color:var(--btn-fg);font-weight:700;padding:12px 18px;border-radius:10px;opacity:0;transition:.2s;pointer-events:none;z-index:60}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .bottom-link{padding:14px;text-align:center;font-size:12px;color:var(--muted2);width:100%}
+  .svc-row{display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:8px}
+  .x{padding:0 13px;border:1px solid rgba(139,46,46,.45);border-radius:8px;color:var(--danger);font-size:12px}
+  .bl{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 13px;margin-bottom:8px;font-family:var(--mono)}
+  .loading{flex:1;display:grid;place-items:center;color:var(--accent);font-family:var(--mono);font-size:13px}
+  :focus-visible{outline:2px solid var(--accent-light);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== CLIENTE ===== -->
+  <section class="view active" id="v-client">
+    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">MARCAÇÕES ONLINE</div></div><div class="logo">🏴‍☠️</div></div>
+    <div class="content" id="client-content"></div>
+    <button class="bottom-link" onclick="show('login')">Acesso administrativo →</button>
+  </section>
+
+  <!-- ===== LOGIN ===== -->
+  <section class="view" id="v-login">
+    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo">🏴‍☠️</div></div>
+    <div class="content">
+      <h2>Entrar</h2>
+      <p class="lead">Área reservada à gestão da barbearia.</p>
+      <label class="label" for="pass">Palavra-passe</label>
+      <input class="input" id="pass" type="password" placeholder="••••••••" autocomplete="current-password">
+      <div class="err" id="login-err"></div>
+      <div style="margin-top:24px"><button class="btn" id="login-btn">Entrar</button></div>
+      <div style="margin-top:10px"><button class="ghost" onclick="show('client')">Voltar</button></div>
+    </div>
+  </section>
+
+  <!-- ===== ADMIN ===== -->
+  <section class="view" id="v-admin">
+    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo">🏴‍☠️</div></div>
+    <div class="content">
+      <div class="between"><h2>Marcações</h2><button class="sm accent" onclick="openSettings()">⚙ Definições</button></div>
+      <div class="tabs" id="tabs"></div>
+      <div id="admin-body"></div>
+      <div style="margin-top:24px"><button class="ghost" onclick="show('client')">Sair do painel</button></div>
+    </div>
+  </section>
+
+  <!-- ===== DEFINIÇÕES ===== -->
+  <section class="view" id="v-settings">
+    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo">🏴‍☠️</div></div>
+    <div class="content" id="settings-content"></div>
+  </section>
+</div>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   CONFIG — mesmo Supabase da app
+   ========================================================= */
+const SB_URL = 'https://unyonayejjwjdfqhjecu.supabase.co';
+const SB_KEY = 'sb_publishable_xPdYjv-TX-7cMQVKptDHxg_hPr72BFO';
+const REST = SB_URL + '/rest/v1';
+const HEADERS = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+const DEFAULT_PASSWORD = 'barbearia123';
+const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+/* =========================================================
+   SUPABASE
+   ========================================================= */
+const sb = {
+  async getBookings(){
+    const r = await fetch(`${REST}/bookings?select=*&order=date.asc,time.asc`, { headers: HEADERS });
+    if (!r.ok) throw new Error('getBookings ' + r.status);
+    return (await r.json()).filter(b => b.status !== 'deleted');
+  },
+  async getSettings(){
+    const r = await fetch(`${REST}/settings?id=eq.1&select=data`, { headers: HEADERS });
+    if (r.ok){ const rows = await r.json(); if (rows.length && rows[0].data) return fromJsonSettings(rows[0].data); }
+    return defaultSettings();
+  },
+  async insert(b){ const r = await fetch(`${REST}/bookings`, { method:'POST', headers:{...HEADERS, Prefer:'return=minimal'}, body: JSON.stringify(b) }); if (!r.ok) throw new Error('insert ' + r.status); },
+  async update(b){ const r = await fetch(`${REST}/bookings?id=eq.${encodeURIComponent(b.id)}`, { method:'PATCH', headers:{...HEADERS, Prefer:'return=minimal'}, body: JSON.stringify(b) }); if (!r.ok) throw new Error('update ' + r.status); },
+  async remove(id){ const r = await fetch(`${REST}/bookings?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', headers:{...HEADERS, Prefer:'return=minimal'} }); if (!r.ok) throw new Error('delete ' + r.status); },
+  async saveSettings(s){ const r = await fetch(`${REST}/settings?id=eq.1`, { method:'PATCH', headers:{...HEADERS, Prefer:'return=minimal'}, body: JSON.stringify({ data: toJsonSettings(s) }) }); if (!r.ok) throw new Error('saveSettings ' + r.status); },
+};
+
+/* =========================================================
+   MODELOS / ESTADO
+   ========================================================= */
+function defaultSettings(){
+  return { workingDays:[1,2,4,5,6], startTime:'09:00', endTime:'19:00',
+    services:[{key:'corte_normal',label:'Corte normal',duration:30},{key:'corte_tecnico',label:'Corte técnico',duration:45},{key:'barba',label:'Barba',duration:20}],
+    lunchEnabled:true, lunchStart:'13:00', lunchEnd:'14:00', blacklist:[], adminPasswordHash:null };
+}
+function fromJsonSettings(j){
+  const d = defaultSettings();
+  return { workingDays: j.workingDays ?? d.workingDays, startTime: j.startTime ?? d.startTime, endTime: j.endTime ?? d.endTime,
+    services: j.services ?? d.services, lunchEnabled: j.lunch?.enabled ?? true, lunchStart: j.lunch?.start ?? '13:00', lunchEnd: j.lunch?.end ?? '14:00',
+    blacklist: (j.blacklist ?? []).map(String), adminPasswordHash: j.adminPasswordHash ?? null };
+}
+function toJsonSettings(s){
+  const o = { workingDays:s.workingDays, startTime:s.startTime, endTime:s.endTime, services:s.services,
+    lunch:{enabled:s.lunchEnabled, start:s.lunchStart, end:s.lunchEnd}, blacklist:s.blacklist };
+  if (s.adminPasswordHash) o.adminPasswordHash = s.adminPasswordHash;
+  return o;
+}
+
+const state = { bookings: [], settings: defaultSettings(), loading: true, saving: false };
+
+const svcLabel = k => (state.settings.services.find(s => s.key === k) || {label:k}).label;
+const svcDur   = k => (state.settings.services.find(s => s.key === k) || {duration:30}).duration;
+const firstSvc = () => state.settings.services.length ? state.settings.services[0].key : 'corte_normal';
+const normPhone = p => p.replace(/[\s\-]/g,'').trim();
+const timeToMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const minToTime = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+const pad = n => String(n).padStart(2,'0');
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayISO = () => isoOf(new Date());
+const parseISO = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); };
+const fmtPretty = iso => { const d = parseISO(iso); return `${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)}`; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function genCode(){
+  const d = new Date();
+  const r = (Date.now()*1000 % 46656).toString(36).toUpperCase().padStart(4,'0');
+  return `B${String(d.getFullYear()).slice(2)}${pad(d.getMonth()+1)}-${r}`;
+}
+function genId(){ return `id_${Date.now()}_${Math.floor(Math.random()*1000)}`; }
+
+function forDay(iso){ return state.bookings.filter(b => b.date === iso && b.status !== 'deleted').sort((a,b) => a.time.localeCompare(b.time)); }
+
+function availableSlots(iso, serviceKey){
+  if (!iso) return [];
+  const s = state.settings, dur = svcDur(serviceKey);
+  const dow = parseISO(iso).getDay();
+  if (!s.workingDays.includes(dow)) return [];
+  const startMin = timeToMin(s.startTime), endMin = timeToMin(s.endTime);
+  const lunchStart = s.lunchEnabled ? timeToMin(s.lunchStart) : null;
+  const lunchEnd   = s.lunchEnabled ? timeToMin(s.lunchEnd)   : null;
+  const dayB = forDay(iso);
+  const isToday = iso === todayISO();
+  const now = new Date(), nowMin = now.getHours()*60 + now.getMinutes();
+  const out = [];
+  for (let t = startMin; t + dur <= endMin; t += 15){
+    if (isToday && t <= nowMin + 15) continue;
+    if (lunchEnd !== null && t < lunchEnd && t + dur > lunchStart) continue;
+    const overlaps = dayB.some(b => { const bs = timeToMin(b.time), be = bs + svcDur(b.service); return t < be && t + dur > bs; });
+    if (!overlaps) out.push(minToTime(t));
+  }
+  return out;
+}
+
+/* ---- SHA-256 → base64 (compatível com a app) ---- */
+async function sha256b64(str){
+  const bytes = new TextEncoder().encode(str);
+  let digest;
+  if (crypto.subtle) digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  else digest = sha256Fallback(bytes);
+  return btoa(String.fromCharCode(...digest));
+}
+function sha256Fallback(msg){ // implementação compacta para contextos não seguros (http://)
+  const K = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+  const H = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+  const l = msg.length, padLen = ((l + 9 + 63) >> 6) << 6, m = new Uint8Array(padLen);
+  m.set(msg); m[l] = 0x80; const dv = new DataView(m.buffer); dv.setUint32(padLen-4, l*8);
+  const W = new Uint32Array(64), rotr = (x,n) => (x>>>n)|(x<<(32-n));
+  for (let i = 0; i < padLen; i += 64){
+    for (let t=0;t<16;t++) W[t] = dv.getUint32(i+t*4);
+    for (let t=16;t<64;t++){ const s0 = rotr(W[t-15],7)^rotr(W[t-15],18)^(W[t-15]>>>3), s1 = rotr(W[t-2],17)^rotr(W[t-2],19)^(W[t-2]>>>10); W[t] = (W[t-16]+s0+W[t-7]+s1)>>>0; }
+    let [a,b,c,d,e,f,g,h] = H;
+    for (let t=0;t<64;t++){ const S1 = rotr(e,6)^rotr(e,11)^rotr(e,25), ch = (e&f)^(~e&g), t1 = (h+S1+ch+K[t]+W[t])>>>0, S0 = rotr(a,2)^rotr(a,13)^rotr(a,22), maj = (a&b)^(a&c)^(b&c), t2 = (S0+maj)>>>0; h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0; }
+    H[0]+=a; H[1]+=b; H[2]+=c; H[3]+=d; H[4]+=e; H[5]+=f; H[6]+=g; H[7]+=h;
+  }
+  const out = new Uint8Array(32); const ov = new DataView(out.buffer); H.forEach((v,i) => ov.setUint32(i*4, v)); return out;
+}
+async function checkPassword(input){
+  if (!state.settings.adminPasswordHash) return input === DEFAULT_PASSWORD;
+  return (await sha256b64(input)) === state.settings.adminPasswordHash;
+}
+
+/* =========================================================
+   AÇÕES (idênticas a AppState)
+   ========================================================= */
+async function reload(){ try { state.bookings = await sb.getBookings(); } catch(e){ console.warn('reload', e); } }
+
+async function createClientBooking({name, phone, service, date, time}){
+  const np = normPhone(phone);
+  if (state.settings.blacklist.includes(np)) return 'Não é possível criar marcações neste momento. Por favor contacte a barbearia diretamente.';
+  state.saving = true;
+  try {
+    await reload();
+    if (state.bookings.some(b => normPhone(b.phone) === np && b.status === 'pending')) return 'Já tens uma marcação pendente. Aguarda confirmação antes de pedir outra.';
+    if (!availableSlots(date, service).includes(time)) return 'Esse horário já não está disponível. Escolhe outra hora.';
+    const b = { id: genId(), code: genCode(), name, phone, service, date, time, duration: svcDur(service), status: 'pending', created_at: new Date().toISOString(), created_by: null };
+    await sb.insert(b); state.bookings.push(b); return null;
+  } catch(e){ console.error(e); return 'Erro ao guardar. Tenta novamente.'; }
+  finally { state.saving = false; }
+}
+async function createAdminBooking({name, phone, service, date, time, status}){
+  state.saving = true;
+  try {
+    await reload();
+    const dup = state.bookings.some(b => b.status !== 'deleted' && b.date === date && b.time === time && b.service === service && normPhone(b.phone) === normPhone(phone));
+    if (!dup){
+      const b = { id: genId(), code: genCode(), name, phone, service, date, time, duration: svcDur(service), status, created_at: new Date().toISOString(), created_by: 'admin' };
+      await sb.insert(b); state.bookings.push(b);
+    }
+    return true;
+  } catch(e){ console.error(e); return false; } finally { state.saving = false; }
+}
+async function confirmBooking(id){ const b = state.bookings.find(x => x.id === id); b.status = 'confirmed'; await sb.update(b); }
+async function updateBooking(b){ b.duration = svcDur(b.service); await sb.update(b); }
+async function moveBooking(id, newTime){ const b = state.bookings.find(x => x.id === id); if (b.time === newTime) return; b.time = newTime; await sb.update(b); }
+async function deleteBooking(id){ await sb.remove(id); state.bookings = state.bookings.filter(x => x.id !== id); }
+async function clearPast(){ const t = todayISO(); for (const b of state.bookings.filter(b => b.status !== 'deleted' && b.date < t)) await sb.remove(b.id); await reload(); }
+async function saveSettings(){ await sb.saveSettings(state.settings); }
+function lookupByPhone(p){ return state.bookings.filter(b => b.phone === p && b.status !== 'deleted').sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time)); }
+
+/* =========================================================
+   UI helpers
+   ========================================================= */
+const $ = s => document.querySelector(s);
+let toastT;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
+function openSheet(html){ $('#sheet').innerHTML = html; $('#overlay').classList.add('open'); }
+function closeSheet(){ $('#overlay').classList.remove('open'); }
+function show(v){ document.querySelectorAll('.view').forEach(x => x.classList.remove('active')); $('#v-' + v).classList.add('active'); window.scrollTo(0,0); if (v === 'login'){ $('#pass').value=''; $('#login-err').textContent=''; setTimeout(() => $('#pass').focus(), 50);} }
+function confirmDialog(title, sub, yes){
+  return new Promise(res => {
+    openSheet(`<h2 class="small">${esc(title)}</h2>${sub ? `<p class="lead">${esc(sub)}</p>` : ''}<div class="row" style="margin-top:16px"><button class="ghost" id="dlg-no">Não</button><button class="ghost danger" id="dlg-yes">${esc(yes || 'Sim')}</button></div>`);
+    $('#dlg-no').onclick = () => { closeSheet(); res(false); };
+    $('#dlg-yes').onclick = () => { closeSheet(); res(true); };
+  });
+}
+function badge(status){ const c = status === 'confirmed'; return `<span class="badge ${c ? 'confirmed' : 'pending'}">${c ? 'CONFIRMADA' : 'PENDENTE'}</span>`; }
+function fields(b){ return `<div class="fields"><div class="f"><label>Serviço</label><div>${esc(svcLabel(b.service))}</div></div><div class="f"><label>Dia</label><div>${fmtPretty(b.date)}</div></div><div class="f"><label>Hora</label><div>${b.time}</div></div></div>`; }
+function ticket(b){ return `<div class="card" style="margin-top:14px"><div class="ticket-stripe"></div><div class="in" style="padding:20px"><div class="code">${esc(b.code)}</div><div class="name" style="font-size:24px;margin-top:8px">${esc(b.name)}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}</div></div>`; }
+
+/* =========================================================
+   CLIENTE
+   ========================================================= */
+const client = { name:'', phone:'', service:null, date:null, time:null, period:null, err:null, submitted:null, lookup:'', lookupResults:null };
+
+function nextWorkingDates(count){
+  const out = []; let d = new Date(); d.setHours(0,0,0,0); let guard = 0;
+  while (out.length < count && guard < 60){ if (state.settings.workingDays.includes(d.getDay())) out.push(isoOf(d)); d.setDate(d.getDate()+1); guard++; }
+  return out;
+}
+function splitSlots(slots){
+  const morningEnd = state.settings.lunchEnabled ? timeToMin(state.settings.lunchStart) : 720;
+  const manha = [], tarde = []; slots.forEach(s => (timeToMin(s) < morningEnd ? manha : tarde).push(s)); return [manha, tarde];
+}
+function defaultPeriod(d, s){ const slots = availableSlots(d, s); if (!slots.length) return null; return splitSlots(slots)[0].length ? 'manha' : 'tarde'; }
+
+function renderClient(){
+  const c = client, el = $('#client-content');
+  if (c.service === null) c.service = firstSvc();
+  if (c.submitted){
+    el.innerHTML = `<h2>Pedido enviado</h2><p class="lead">A tua marcação está pendente de confirmação pela barbearia. Guarda este talão.</p>${ticket(c.submitted)}<button class="ghost" id="new-bk">Fazer nova marcação</button>`;
+    $('#new-bk').onclick = () => { Object.assign(c, {submitted:null, name:'', phone:'', service:firstSvc(), date:null, time:null, period:null, err:null}); renderClient(); };
+    return;
+  }
+  const s = state.settings, dates = nextWorkingDates(10);
+  const slots = c.date ? availableSlots(c.date, c.service) : [];
+  let slotHtml = '';
+  if (c.date){
+    if (!slots.length) slotHtml = `<span class="label">Hora disponível</span><div class="empty">Sem horários livres neste dia. Escolhe outro dia.</div>`;
+    else {
+      const [manha, tarde] = splitSlots(slots);
+      const sec = (key, title, arr) => {
+        const dis = !arr.length, open = c.period === key && !dis;
+        return `<button class="period ${open ? 'open' : ''}" data-period="${key}" ${dis ? 'disabled' : ''}><span>${title}</span><span class="n">${dis ? 'sem horários' : `${arr.length} livre${arr.length > 1 ? 's' : ''}  ${open ? '▾' : '▸'}`}</span></button>` +
+          (open ? `<div class="grid3" style="margin-top:8px">${arr.map(t => `<button class="slot ${c.time === t ? 'on' : ''}" data-slot="${t}">${t}</button>`).join('')}</div>` : '');
+      };
+      slotHtml = `<span class="label">Hora disponível</span>${sec('manha','Manhã',manha)}${sec('tarde','Tarde',tarde)}`;
+    }
+  }
+  el.innerHTML = `
+    <h2>Marca o teu horário</h2>
+    <p class="lead">Escolhe o serviço, o dia e a hora. A tua marcação fica pendente até ser confirmada pela barbearia.</p>
+    <label class="label" for="c-name">Nome</label><input class="input" id="c-name" placeholder="O teu nome" value="${esc(c.name)}" autocomplete="name">
+    <label class="label" for="c-phone">Telemóvel</label><input class="input" id="c-phone" type="tel" placeholder="9xx xxx xxx" value="${esc(c.phone)}" autocomplete="tel">
+    <span class="label">Serviço</span>
+    <div class="grid2">${s.services.map(sv => `<button class="pill ${c.service === sv.key ? 'on' : ''}" data-svc="${esc(sv.key)}">${esc(sv.label)}<small>${sv.duration} min</small></button>`).join('')}</div>
+    <span class="label">Dia</span>
+    <div class="days">${dates.map(d => { const dd = parseISO(d); return `<button class="day ${c.date === d ? 'on' : ''}" data-date="${d}"><span>${DOW[dd.getDay()]}</span><b>${pad(dd.getDate())}</b></button>`; }).join('')}</div>
+    ${slotHtml}
+    <div class="err">${c.err ? esc(c.err) : ''}</div>
+    <div style="margin-top:14px"><button class="btn" id="c-submit" ${state.saving ? 'disabled' : ''}>Pedir marcação</button></div>
+    <div style="height:34px"></div>
+    <h2 class="small">Já tens uma marcação?</h2>
+    <p class="lead">Vê o estado pelo teu número de telemóvel.</p>
+    <input class="input" id="c-lookup" type="tel" placeholder="O teu número de telemóvel" value="${esc(c.lookup)}">
+    <div style="margin-top:10px"><button class="ghost" id="c-lookup-btn">Ver as minhas marcações</button></div>
+    <div id="c-lookup-res">${c.lookupResults === null ? '' : (c.lookupResults.length ? c.lookupResults.map(ticket).join('') : '<div class="empty">Nenhuma marcação encontrada para este número.</div>')}</div>`;
+
+  const syncInputs = () => { c.name = $('#c-name').value; c.phone = $('#c-phone').value; c.lookup = $('#c-lookup').value; };
+  el.querySelectorAll('[data-svc]').forEach(b => b.onclick = () => { syncInputs(); c.service = b.dataset.svc; c.time = null; c.period = c.date ? defaultPeriod(c.date, c.service) : null; renderClient(); });
+  el.querySelectorAll('[data-date]').forEach(b => b.onclick = () => { syncInputs(); c.date = b.dataset.date; c.time = null; c.period = defaultPeriod(c.date, c.service); renderClient(); });
+  el.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { syncInputs(); c.period = c.period === b.dataset.period ? null : b.dataset.period; renderClient(); });
+  el.querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { syncInputs(); c.time = b.dataset.slot; renderClient(); });
+  $('#c-submit').onclick = async () => {
+    syncInputs();
+    const name = c.name.trim(), phone = c.phone.trim();
+    if (!name || !phone){ c.err = 'Preenche o nome e o telemóvel.'; return renderClient(); }
+    if (!c.date || !c.time){ c.err = 'Escolhe o dia e a hora.'; return renderClient(); }
+    c.err = null; $('#c-submit').disabled = true;
+    const err = await createClientBooking({ name, phone, service: c.service, date: c.date, time: c.time });
+    if (err){ c.err = err; return renderClient(); }
+    c.submitted = state.bookings[state.bookings.length - 1]; renderClient();
+  };
+  $('#c-lookup-btn').onclick = async () => { syncInputs(); await reload(); c.lookupResults = lookupByPhone(c.lookup.trim()); renderClient(); $('#c-lookup-res').scrollIntoView({behavior:'smooth', block:'start'}); };
+}
+
+/* =========================================================
+   LOGIN
+   ========================================================= */
+async function tryLogin(){
+  if (await checkPassword($('#pass').value)){ admin.tab = 'pendentes'; admin.agendaDate = todayISO(); await reload(); renderAdmin(); show('admin'); }
+  else $('#login-err').textContent = 'Palavra-passe incorreta.';
+}
+$('#login-btn').onclick = tryLogin;
+$('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+
+/* =========================================================
+   ADMIN
+   ========================================================= */
+const admin = { tab: 'pendentes', agendaDate: todayISO(), editing: null };
+const TABS = { pendentes:'Pendentes', confirmadas:'Confirmadas', todas:'Todas', agenda:'Agenda' };
+
+function renderAdmin(){
+  $('#tabs').innerHTML = Object.entries(TABS).map(([k,v]) => `<button class="tab ${admin.tab === k ? 'on' : ''}" data-tab="${k}">${v}</button>`).join('');
+  $('#tabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.tab; admin.editing = null; renderAdmin(); });
+  const body = $('#admin-body');
+  if (admin.tab === 'agenda') return renderAgenda(body);
+  const all = state.bookings.filter(b => b.status !== 'deleted').sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+  const list = admin.tab === 'pendentes' ? all.filter(b => b.status === 'pending') : admin.tab === 'confirmadas' ? all.filter(b => b.status === 'confirmed') : all;
+  if (!list.length){ body.innerHTML = '<div class="empty">Sem marcações aqui.</div>'; return; }
+  body.innerHTML = list.map(b => admin.editing === b.id ? editCard(b) : adminCard(b)).join('');
+  bindAdminCards(body);
+}
+
+function adminCard(b){
+  return `<div class="card" data-id="${b.id}"><div class="in"><div class="code">${esc(b.code)}</div><div class="name">${esc(b.name)}</div><div class="phone">${esc(b.phone)}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}
+    <div class="row" style="margin-top:14px">${b.status === 'pending' ? `<button class="sm accent" data-act="confirm">Confirmar</button>` : ''}<button class="sm" data-act="edit">Editar</button><button class="sm danger" data-act="delete">Eliminar</button></div></div></div>`;
+}
+function editCard(b){
+  return `<div class="card" data-id="${b.id}"><div class="in">
+    <div class="name" style="font-size:18px;margin-top:0">A editar: ${esc(b.name)}</div>
+    <span class="label">Serviço</span><div class="wrap">${state.settings.services.map(sv => `<button class="pill ${b.service === sv.key ? 'on' : ''}" style="padding:10px 14px" data-esvc="${esc(sv.key)}">${esc(sv.label)}</button>`).join('')}</div>
+    <label class="label">Dia</label><input class="input mono" type="date" data-edate value="${b.date}">
+    <label class="label">Hora (livre)</label><input class="input mono" type="time" step="300" data-etime value="${b.time}">
+    <span class="label">Estado</span><div class="row"><button class="pill ${b.status === 'pending' ? 'on' : ''}" data-estatus="pending">Pendente</button><button class="pill ${b.status === 'confirmed' ? 'on' : ''}" data-estatus="confirmed">Confirmada</button></div>
+    <div class="row" style="margin-top:14px"><button class="sm accent" data-act="save">Guardar</button><button class="sm" data-act="cancel">Cancelar</button></div></div></div>`;
+}
+const editDraft = {};
+function bindAdminCards(root){
+  root.querySelectorAll('.card').forEach(card => {
+    const id = card.dataset.id, b = state.bookings.find(x => x.id === id);
+    card.querySelectorAll('[data-act]').forEach(btn => btn.onclick = async () => {
+      const act = btn.dataset.act;
+      if (act === 'confirm'){ await confirmBooking(id); toast('Confirmada'); renderAdmin(); }
+      else if (act === 'edit'){ admin.editing = id; editDraft[id] = { service: b.service, date: b.date, time: b.time, status: b.status }; renderAdmin(); }
+      else if (act === 'cancel'){ admin.editing = null; renderAdmin(); }
+      else if (act === 'save'){
+        const d = editDraft[id]; d.date = card.querySelector('[data-edate]').value || d.date; d.time = card.querySelector('[data-etime]').value || d.time;
+        Object.assign(b, d); await updateBooking(b); admin.editing = null; toast('Atualizada'); renderAdmin();
+      }
+      else if (act === 'delete'){ if (await confirmDialog('Eliminar esta marcação?')){ await deleteBooking(id); toast('Eliminada'); renderAdmin(); } }
+    });
+    card.querySelectorAll('[data-esvc]').forEach(p => p.onclick = () => { editDraft[id].service = p.dataset.esvc; card.querySelectorAll('[data-esvc]').forEach(x => x.classList.toggle('on', x === p)); });
+    card.querySelectorAll('[data-estatus]').forEach(p => p.onclick = () => { editDraft[id].status = p.dataset.estatus; card.querySelectorAll('[data-estatus]').forEach(x => x.classList.toggle('on', x === p)); });
+  });
+}
+
+/* ---- Agenda ---- */
+const PX_PER_MIN = 1.15;
+function shiftISO(iso, delta){ const d = parseISO(iso); d.setDate(d.getDate()+delta); return isoOf(d); }
+
+function renderAgenda(body){
+  const s = state.settings, date = admin.agendaDate;
+  const startMin = timeToMin(s.startTime), endMin = timeToMin(s.endTime);
+  const totalH = Math.max(120, (endMin - startMin) * PX_PER_MIN);
+  const dayB = forDay(date), pend = dayB.filter(b => b.status === 'pending').length;
+  const d = parseISO(date), isToday = date === todayISO();
+  const pastCount = state.bookings.filter(b => b.status !== 'deleted' && b.date < todayISO()).length;
+
+  let grid = '';
+  if (dayB.length){
+    let lines = '';
+    for (let m = Math.ceil(startMin/60)*60; m <= endMin; m += 60) lines += `<div class="hline" style="top:${(m-startMin)*PX_PER_MIN}px"><span>${minToTime(m)}</span><i></i></div>`;
+    let lunch = '';
+    if (s.lunchEnabled){
+      const ls = timeToMin(s.lunchStart), le = timeToMin(s.lunchEnd);
+      if (le > startMin && ls < endMin){ const a = Math.max(ls,startMin), z = Math.min(le,endMin); lunch = `<div class="lunch" style="top:${(a-startMin)*PX_PER_MIN}px;height:${(z-a)*PX_PER_MIN}px">ALMOÇO</div>`; }
+    }
+    let now = '';
+    if (isToday){ const n = new Date(), nm = n.getHours()*60+n.getMinutes(); if (nm >= startMin && nm <= endMin) now = `<div class="now" style="top:${(nm-startMin)*PX_PER_MIN}px"></div>`; }
+    const blocks = dayB.map(b => { const dur = svcDur(b.service), h = Math.max(34, dur*PX_PER_MIN);
+      return `<div class="block ${b.status}" data-id="${b.id}" style="top:${(timeToMin(b.time)-startMin)*PX_PER_MIN}px;height:${h}px"><div class="t"><span class="tt">${b.time}</span> · ${dur}min</div><div class="nm">${esc(b.name)}</div>${h > 44 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
+    grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${blocks}${now}</div>`;
+  }
+
+  body.innerHTML = `
+    <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3>${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''}</h3><button class="sm" id="ag-next">▶</button></div>
+    <div class="agenda-count">${dayB.length} marcaç${dayB.length === 1 ? 'ão' : 'ões'}${pend ? ` · ${pend} pendente${pend > 1 ? 's' : ''}` : ''}</div>
+    <button class="ghost" id="ag-new" style="border-color:rgba(201,161,74,.4);color:var(--accent);font-size:13px">+ Nova marcação neste dia</button>
+    ${dayB.length ? '<p class="hint">Clica numa marcação para ver/editar · arrasta para cima/baixo para mudar a hora.</p>' : '<div class="empty" style="margin-top:8px">Sem marcações neste dia.</div>'}
+    ${grid}
+    ${pastCount ? `<div style="margin-top:18px"><button class="ghost danger" id="ag-clear" style="font-size:13px">Apagar marcações de dias anteriores (${pastCount})</button></div>` : ''}`;
+
+  $('#ag-prev').onclick = () => { admin.agendaDate = shiftISO(date,-1); renderAdmin(); };
+  $('#ag-next').onclick = () => { admin.agendaDate = shiftISO(date, 1); renderAdmin(); };
+  $('#ag-new').onclick = () => openNewBooking(date);
+  const clr = $('#ag-clear'); if (clr) clr.onclick = async () => { if (await confirmDialog('Apagar marcações passadas?','Esta ação é irreversível.','Sim, apagar')){ await clearPast(); toast('Apagadas'); renderAdmin(); } };
+  body.querySelectorAll('.block').forEach(el => bindDrag(el, startMin, endMin));
+}
+
+function bindDrag(el, startMin, endMin){
+  const b = state.bookings.find(x => x.id === el.dataset.id), dur = svcDur(b.service);
+  const baseTop = (timeToMin(b.time) - startMin) * PX_PER_MIN;
+  const latest = Math.max(startMin, endMin - dur);
+  const snap = topPx => Math.min(latest, Math.max(startMin, startMin + Math.round((topPx / PX_PER_MIN) / 5) * 5));
+  let startY = 0, off = 0, dragging = false, moved = false;
+  el.addEventListener('pointerdown', e => { startY = e.clientY; off = 0; dragging = true; moved = false; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointermove', e => {
+    if (!dragging) return; off = e.clientY - startY;
+    if (Math.abs(off) > 4) moved = true;
+    if (!moved) return;
+    el.classList.add('dragging'); el.style.transform = `translateY(${off}px)`;
+    el.querySelector('.tt').textContent = minToTime(snap(baseTop + off));
+  });
+  const end = async e => {
+    if (!dragging) return; dragging = false; el.classList.remove('dragging'); el.style.transform = '';
+    if (!moved){ openDetail(b); return; }
+    const nt = minToTime(snap(baseTop + off));
+    if (nt !== b.time){ await moveBooking(b.id, nt); toast('Movida para ' + nt); }
+    renderAdmin();
+  };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
+
+function openDetail(b){
+  openSheet(`<div class="code">${esc(b.code)}</div><div class="name" style="font-size:24px">${esc(b.name)}</div><div class="phone">${esc(b.phone)}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}
+    <div class="row" style="margin-top:16px">${b.status === 'pending' ? '<button class="ghost" id="d-confirm" style="border-color:rgba(201,161,74,.4);color:var(--accent)">Confirmar</button>' : ''}<button class="ghost danger" id="d-delete">Eliminar</button></div>
+    <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Fechar</button>`);
+  const c = $('#d-confirm'); if (c) c.onclick = async () => { await confirmBooking(b.id); closeSheet(); toast('Confirmada'); renderAdmin(); };
+  $('#d-delete').onclick = async () => { await deleteBooking(b.id); closeSheet(); toast('Eliminada'); renderAdmin(); };
+}
+
+function openNewBooking(date){
+  const d = parseISO(date), s = state.settings; let svc = firstSvc(), status = 'confirmed';
+  openSheet(`<h2>Nova marcação</h2><p class="lead">${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)} · podes marcar a qualquer hora</p>
+    <span class="label">Serviço</span><div class="wrap" id="n-svc">${s.services.map(sv => `<button class="pill ${sv.key === svc ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}<small>${sv.duration} min</small></button>`).join('')}</div>
+    <label class="label" for="n-time">Hora (livre — sobreposição permitida)</label><input class="input mono" type="time" step="300" id="n-time" value="${s.startTime}">
+    <label class="label" for="n-name">Nome</label><input class="input" id="n-name" placeholder="Nome do cliente">
+    <label class="label" for="n-phone">Telemóvel</label><input class="input" id="n-phone" type="tel" placeholder="9xx xxx xxx">
+    <span class="label">Estado</span><div class="row" id="n-status"><button class="pill" data-s="pending">Pendente</button><button class="pill on" data-s="confirmed">Confirmada</button></div>
+    <div class="err" id="n-err"></div>
+    <div style="margin-top:16px"><button class="btn" id="n-create">Criar marcação</button></div>
+    <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Cancelar</button>`);
+  $('#n-svc').querySelectorAll('[data-k]').forEach(p => p.onclick = () => { svc = p.dataset.k; $('#n-svc').querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === p)); });
+  $('#n-status').querySelectorAll('[data-s]').forEach(p => p.onclick = () => { status = p.dataset.s; $('#n-status').querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === p)); });
+  $('#n-create').onclick = async () => {
+    const name = $('#n-name').value.trim(), phone = $('#n-phone').value.trim(), time = $('#n-time').value;
+    if (!name || !phone){ $('#n-err').textContent = 'Preenche o nome e o telemóvel.'; return; }
+    if (!time){ $('#n-err').textContent = 'Indica a hora.'; return; }
+    $('#n-create').disabled = true;
+    const ok = await createAdminBooking({ name, phone, service: svc, date, time, status });
+    if (ok){ closeSheet(); toast('Marcação criada'); renderAdmin(); } else { $('#n-create').disabled = false; $('#n-err').textContent = 'Erro ao criar. Tenta novamente.'; }
+  };
+  setTimeout(() => $('#n-name').focus(), 50);
+}
+
+/* =========================================================
+   DEFINIÇÕES
+   ========================================================= */
+let draft = null;
+function openSettings(){
+  const s = state.settings;
+  draft = { workingDays:[...s.workingDays], startTime:s.startTime, endTime:s.endTime, lunchEnabled:s.lunchEnabled, lunchStart:s.lunchStart, lunchEnd:s.lunchEnd,
+    services: s.services.map(x => ({...x})), blacklist:[...s.blacklist], pass:'', blInput:'' };
+  renderSettings(); show('settings');
+}
+function renderSettings(){
+  const d = draft, el = $('#settings-content');
+  el.innerHTML = `
+    <div class="between"><h2>Definições</h2><button class="sm" onclick="show('admin');renderAdmin()">← Voltar</button></div>
+    <span class="label">Dias de trabalho</span>
+    <div class="wrap">${[1,2,3,4,5,6,0].map(n => `<button class="chip ${d.workingDays.includes(n) ? 'on' : ''}" data-dow="${n}">${DOW[n]}</button>`).join('')}</div>
+    <span class="label">Horário de funcionamento</span>
+    <div class="row"><input class="input mono" type="time" id="s-start" value="${d.startTime}"><input class="input mono" type="time" id="s-end" value="${d.endTime}"></div>
+    <span class="label">Hora de almoço</span>
+    <button class="chip ${d.lunchEnabled ? 'on' : ''}" id="s-lunch">${d.lunchEnabled ? 'Ativa' : 'Desativada'} — clica para alternar</button>
+    ${d.lunchEnabled ? `<div class="row" style="margin-top:10px"><input class="input mono" type="time" id="s-ls" value="${d.lunchStart}"><input class="input mono" type="time" id="s-le" value="${d.lunchEnd}"></div>
+      <p class="lead" style="margin-top:6px">Os clientes não conseguem marcar dentro deste intervalo. O administrador continua livre de o fazer.</p>` : ''}
+    <span class="label">Serviços e durações médias</span>
+    <p class="lead" style="margin-top:0">Define o nome e a duração (em minutos) de cada serviço.</p>
+    <div id="s-svcs">${d.services.map((sv,i) => `<div class="svc-row"><input class="input" data-sl="${i}" placeholder="Nome do serviço" value="${esc(sv.label)}"><input class="input mono" type="number" min="5" data-sd="${i}" placeholder="min" value="${sv.duration}"><button class="x" data-sx="${i}" title="Remover">✕</button></div>`).join('')}</div>
+    <button class="ghost" id="s-add">+ Adicionar serviço</button>
+    <label class="label" for="s-pass">Alterar palavra-passe de administrador</label>
+    <input class="input" id="s-pass" type="text" placeholder="Deixa em branco para manter" value="${esc(d.pass)}" autocomplete="off">
+    <div style="margin-top:24px"><button class="btn" id="s-save">Guardar definições</button></div>
+    <div style="height:30px"></div>
+    <span class="label">Lista negra de números</span>
+    <p class="lead" style="margin-top:0">Estes números não conseguem pedir novas marcações.</p>
+    <div class="row"><input class="input" id="s-bl" type="tel" placeholder="9xx xxx xxx" value="${esc(d.blInput)}"><button class="sm danger" id="s-bl-add" style="flex:0 0 auto;padding:12px 14px">Adicionar</button></div>
+    <div style="margin-top:12px">${d.blacklist.length ? d.blacklist.map(p => `<div class="bl"><span>${esc(p)}</span><button class="sm" data-blr="${esc(p)}">Remover</button></div>`).join('') : '<div class="empty">Nenhum número bloqueado.</div>'}</div>
+    <div style="height:20px"></div>`;
+
+  const sync = () => {
+    d.startTime = $('#s-start').value || d.startTime; d.endTime = $('#s-end').value || d.endTime;
+    if (d.lunchEnabled){ d.lunchStart = $('#s-ls').value || d.lunchStart; d.lunchEnd = $('#s-le').value || d.lunchEnd; }
+    el.querySelectorAll('[data-sl]').forEach(i => d.services[+i.dataset.sl].label = i.value);
+    el.querySelectorAll('[data-sd]').forEach(i => d.services[+i.dataset.sd].duration = parseInt(i.value) || 0);
+    d.pass = $('#s-pass').value; d.blInput = $('#s-bl').value;
+  };
+  el.querySelectorAll('[data-dow]').forEach(b => b.onclick = () => { sync(); const n = +b.dataset.dow; d.workingDays.includes(n) ? d.workingDays = d.workingDays.filter(x => x !== n) : d.workingDays.push(n); renderSettings(); });
+  $('#s-lunch').onclick = () => { sync(); d.lunchEnabled = !d.lunchEnabled; renderSettings(); };
+  el.querySelectorAll('[data-sx]').forEach(b => b.onclick = () => { sync(); d.services.splice(+b.dataset.sx, 1); renderSettings(); });
+  $('#s-add').onclick = () => { sync(); d.services.push({ key:'', label:'', duration:30 }); renderSettings(); setTimeout(() => { const ins = el.querySelectorAll('[data-sl]'); ins[ins.length-1]?.focus(); }, 30); };
+  $('#s-save').onclick = async () => {
+    sync();
+    const svc = d.services.filter(x => x.label.trim()).map((x,i) => ({ key: x.key || `svc_${Date.now()}_${i}`, label: x.label.trim(), duration: Math.max(5, x.duration || 0) }));
+    const s = state.settings;
+    Object.assign(s, { workingDays: d.workingDays, startTime: d.startTime, endTime: d.endTime, lunchEnabled: d.lunchEnabled, lunchStart: d.lunchStart, lunchEnd: d.lunchEnd, services: svc.length ? svc : defaultSettings().services });
+    if (d.pass.trim()) s.adminPasswordHash = await sha256b64(d.pass.trim());
+    try { await saveSettings(); toast('Definições guardadas'); show('admin'); renderAdmin(); } catch(e){ toast('Erro ao guardar'); console.error(e); }
+  };
+  $('#s-bl-add').onclick = async () => {
+    sync(); const np = normPhone(d.blInput); if (!np) return;
+    if (!d.blacklist.includes(np)) d.blacklist.push(np);
+    state.settings.blacklist = [...d.blacklist]; await saveSettings(); d.blInput = ''; toast('Número bloqueado'); renderSettings();
+  };
+  el.querySelectorAll('[data-blr]').forEach(b => b.onclick = async () => {
+    sync(); d.blacklist = d.blacklist.filter(p => p !== b.dataset.blr);
+    state.settings.blacklist = [...d.blacklist]; await saveSettings(); toast('Número desbloqueado'); renderSettings();
+  });
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(async function init(){
+  $('#client-content').innerHTML = '<div class="loading">a carregar…</div>';
+  try { state.settings = await sb.getSettings(); state.bookings = await sb.getBookings(); }
+  catch(e){ console.error('init', e); }
+  state.loading = false;
+  client.service = firstSvc();
+  renderClient();
+})();
+</script>
+</body>
+</html>
