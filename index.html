@@ -102,6 +102,7 @@
 
   /* Agenda */
   .agenda-head{display:flex;align-items:center;gap:8px}
+  .agenda-wrap{max-width:640px;margin:0 auto}
   .agenda-head h3{flex:1;text-align:center;font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:.5px}
   .agenda-count{text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted2);margin:10px 0 16px}
   .hint{font-size:11px;color:var(--muted2);line-height:1.4;margin:8px 0 14px}
@@ -131,6 +132,34 @@
   .x{padding:0 13px;border:1px solid rgba(139,46,46,.45);border-radius:8px;color:var(--danger);font-size:12px}
   .bl{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 13px;margin-bottom:8px;font-family:var(--mono)}
   .loading{flex:1;display:grid;place-items:center;color:var(--accent);font-family:var(--mono);font-size:13px}
+
+  /* ---- Responsivo ---- */
+  .cols{display:flex;flex-direction:column}
+  .col-side{margin-top:34px}
+  @media (min-width:900px){
+    .app{max-width:1040px}
+    .topbar{padding:26px 32px 18px}
+    .brand{font-size:34px}
+    .content{padding:28px 32px 40px}
+    .cols{flex-direction:row;gap:48px;align-items:flex-start}
+    .col{flex:1;min-width:0}
+    .col-side{flex:0 0 360px;margin-top:0;position:sticky;top:24px}
+    .grid2{grid-template-columns:repeat(3,1fr)}
+    .grid3{grid-template-columns:repeat(5,1fr)}
+    .days{flex-wrap:wrap;overflow:visible}
+    .day{flex:0 0 64px}
+    #admin-body:not(.agenda-mode){display:grid;grid-template-columns:repeat(2,1fr);gap:0 20px;align-items:start}
+    #admin-body .empty{grid-column:1/-1}
+    .block{left:64px}
+    .hline span{width:50px}
+    .lunch,.now{left:56px}
+    #v-login .content,#v-settings .content{max-width:560px;margin:0 auto;width:100%}
+    .overlay{align-items:center}
+  }
+  @media (min-width:1200px){
+    .cols{gap:64px}
+    .col-side{flex-basis:400px}
+  }
   :focus-visible{outline:2px solid var(--accent-light);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -402,7 +431,7 @@ function renderClient(){
       slotHtml = `<span class="label">Hora disponível</span>${sec('manha','Manhã',manha)}${sec('tarde','Tarde',tarde)}`;
     }
   }
-  el.innerHTML = `
+  el.innerHTML = `<div class="cols"><div class="col">
     <h2>Marca o teu horário</h2>
     <p class="lead">Escolhe o serviço, o dia e a hora. A tua marcação fica pendente até ser confirmada pela barbearia.</p>
     <label class="label" for="c-name">Nome</label><input class="input" id="c-name" placeholder="O teu nome" value="${esc(c.name)}" autocomplete="name">
@@ -414,12 +443,13 @@ function renderClient(){
     ${slotHtml}
     <div class="err">${c.err ? esc(c.err) : ''}</div>
     <div style="margin-top:14px"><button class="btn" id="c-submit" ${state.saving ? 'disabled' : ''}>Pedir marcação</button></div>
-    <div style="height:34px"></div>
+    </div><div class="col col-side">
     <h2 class="small">Já tens uma marcação?</h2>
     <p class="lead">Vê o estado pelo teu número de telemóvel.</p>
     <input class="input" id="c-lookup" type="tel" placeholder="O teu número de telemóvel" value="${esc(c.lookup)}">
     <div style="margin-top:10px"><button class="ghost" id="c-lookup-btn">Ver as minhas marcações</button></div>
-    <div id="c-lookup-res">${c.lookupResults === null ? '' : (c.lookupResults.length ? c.lookupResults.map(ticket).join('') : '<div class="empty">Nenhuma marcação encontrada para este número.</div>')}</div>`;
+    <div id="c-lookup-res">${c.lookupResults === null ? '' : (c.lookupResults.length ? c.lookupResults.map(ticket).join('') : '<div class="empty">Nenhuma marcação encontrada para este número.</div>')}</div>
+    </div></div>`;
 
   const syncInputs = () => { c.name = $('#c-name').value; c.phone = $('#c-phone').value; c.lookup = $('#c-lookup').value; };
   el.querySelectorAll('[data-svc]').forEach(b => b.onclick = () => { syncInputs(); c.service = b.dataset.svc; c.time = null; c.period = c.date ? defaultPeriod(c.date, c.service) : null; renderClient(); });
@@ -459,6 +489,7 @@ function renderAdmin(){
   $('#tabs').innerHTML = Object.entries(TABS).map(([k,v]) => `<button class="tab ${admin.tab === k ? 'on' : ''}" data-tab="${k}">${v}</button>`).join('');
   $('#tabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.tab; admin.editing = null; renderAdmin(); });
   const body = $('#admin-body');
+  body.classList.toggle('agenda-mode', admin.tab === 'agenda');
   if (admin.tab === 'agenda') return renderAgenda(body);
   const all = state.bookings.filter(b => b.status !== 'deleted').sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
   const list = admin.tab === 'pendentes' ? all.filter(b => b.status === 'pending') : admin.tab === 'confirmadas' ? all.filter(b => b.status === 'confirmed') : all;
@@ -528,13 +559,13 @@ function renderAgenda(body){
     grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${blocks}${now}</div>`;
   }
 
-  body.innerHTML = `
+  body.innerHTML = `<div class="agenda-wrap">
     <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3>${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''}</h3><button class="sm" id="ag-next">▶</button></div>
     <div class="agenda-count">${dayB.length} marcaç${dayB.length === 1 ? 'ão' : 'ões'}${pend ? ` · ${pend} pendente${pend > 1 ? 's' : ''}` : ''}</div>
     <button class="ghost" id="ag-new" style="border-color:rgba(201,161,74,.4);color:var(--accent);font-size:13px">+ Nova marcação neste dia</button>
     ${dayB.length ? '<p class="hint">Clica numa marcação para ver/editar · arrasta para cima/baixo para mudar a hora.</p>' : '<div class="empty" style="margin-top:8px">Sem marcações neste dia.</div>'}
     ${grid}
-    ${pastCount ? `<div style="margin-top:18px"><button class="ghost danger" id="ag-clear" style="font-size:13px">Apagar marcações de dias anteriores (${pastCount})</button></div>` : ''}`;
+    ${pastCount ? `<div style="margin-top:18px"><button class="ghost danger" id="ag-clear" style="font-size:13px">Apagar marcações de dias anteriores (${pastCount})</button></div>` : ''}</div>`;
 
   $('#ag-prev').onclick = () => { admin.agendaDate = shiftISO(date,-1); renderAdmin(); };
   $('#ag-next').onclick = () => { admin.agendaDate = shiftISO(date, 1); renderAdmin(); };
