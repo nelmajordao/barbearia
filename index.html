@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A0A0A">
 <title>Barbearia Capitão — Marcações</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,9 +27,13 @@
 
   /* Topbar */
   .topbar{display:flex;justify-content:space-between;align-items:center;padding:22px 20px 16px;border-bottom:1px solid var(--border)}
-  .brand{font-family:var(--display);font-size:28px;letter-spacing:1.5px;color:var(--accent);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand{font-family:var(--display);font-size:26px;letter-spacing:1.5px;color:var(--accent);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand-sub{font-size:11px;letter-spacing:2px;color:var(--muted2);font-weight:500;margin-top:2px}
-  .logo{width:56px;height:56px;border-radius:50%;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 0 0 2px var(--accent),0 0 10px rgba(184,149,42,.3);flex-shrink:0;margin-left:10px}
+  .tb-left{flex:1;min-width:0}
+  .tb-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .palette{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);color:var(--accent);font-size:18px;line-height:1;display:grid;place-items:center;background:var(--surface)}
+  .palette:hover{border-color:var(--accent)}
+  .logo{width:56px;height:56px;border-radius:50%;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 0 0 2px var(--accent),0 0 10px rgba(184,149,42,.3);flex-shrink:0}
   .logo img{width:100%;height:100%;object-fit:contain;display:block;image-rendering:auto}
 
   .content{flex:1;padding:20px}
@@ -41,7 +46,7 @@
   .input:focus{border-color:var(--accent)}
   .input::placeholder{color:var(--muted2)}
   .input.mono{font-family:var(--mono)}
-  input[type=date].input,input[type=time].input{color-scheme:dark}
+  
 
   .btn{width:100%;border-radius:10px;padding:14px;font-weight:700;font-size:15px;background:var(--accent);color:var(--btn-fg)}
   .btn:disabled{opacity:.5;cursor:default}
@@ -112,6 +117,7 @@
   .hline i{flex:1;height:1px;background:var(--border)}
   .lunch{position:absolute;left:48px;right:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted2)}
   .now{position:absolute;left:48px;right:0;height:2px;background:var(--accent);z-index:3}
+  .after{position:absolute;left:48px;right:0;border-top:1px dashed var(--muted2);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted2);background:repeating-linear-gradient(135deg,transparent 0 10px,rgba(255,255,255,.02) 10px 20px)}
   .block{position:absolute;left:56px;right:0;border-radius:9px;padding:6px 10px 6px 22px;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:grab;z-index:2;touch-action:none}
   .block.pending{background:var(--pending-bg);border-left-color:var(--pending)}
   .block.confirmed{background:var(--confirmed-bg);border-left-color:var(--confirmed)}
@@ -133,6 +139,17 @@
   .bl{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 13px;margin-bottom:8px;font-family:var(--mono)}
   .loading{flex:1;display:grid;place-items:center;color:var(--accent);font-family:var(--mono);font-size:13px}
 
+  .themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .theme{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:var(--surface)}
+  .theme.on{border-color:var(--accent);background:var(--accent-dim)}
+  .theme small{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .theme.on small{color:var(--accent);font-weight:600}
+  .sw{width:100%;height:34px;border-radius:7px;border:1px solid;display:flex;align-items:flex-end;gap:4px;padding:5px}
+  .sw i{display:block;height:8px;border-radius:2px;flex:1}
+  .sw i:first-child{flex:2}
+  @media (min-width:900px){.themes{grid-template-columns:repeat(5,1fr)}
+  .sheet.wide{max-width:560px}}
+  @media (max-width:380px){.brand{font-size:22px}.palette{width:32px;height:32px;font-size:16px}.logo{width:48px;height:48px}}
   /* ---- Responsivo ---- */
   .cols{display:flex;flex-direction:column}
   .col-side{margin-top:34px}
@@ -170,14 +187,14 @@
 
   <!-- ===== CLIENTE ===== -->
   <section class="view active" id="v-client">
-    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">MARCAÇÕES ONLINE</div></div><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div>
+    <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">MARCAÇÕES ONLINE</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
     <div class="content" id="client-content"></div>
     <button class="bottom-link" onclick="show('login')">Acesso administrativo →</button>
   </section>
 
   <!-- ===== LOGIN ===== -->
   <section class="view" id="v-login">
-    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div>
+    <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
     <div class="content">
       <h2>Entrar</h2>
       <p class="lead">Área reservada à gestão da barbearia.</p>
@@ -191,7 +208,7 @@
 
   <!-- ===== ADMIN ===== -->
   <section class="view" id="v-admin">
-    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div>
+    <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
     <div class="content">
       <div class="between"><h2>Marcações</h2><button class="sm accent" onclick="openSettings()">⚙ Definições</button></div>
       <div class="tabs" id="tabs"></div>
@@ -202,7 +219,7 @@
 
   <!-- ===== DEFINIÇÕES ===== -->
   <section class="view" id="v-settings">
-    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div>
+    <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
     <div class="content" id="settings-content"></div>
   </section>
 </div>
@@ -219,6 +236,39 @@ const SB_KEY = 'sb_publishable_xPdYjv-TX-7cMQVKptDHxg_hPr72BFO';
 const REST = SB_URL + '/rest/v1';
 const HEADERS = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
 const DEFAULT_PASSWORD = 'barbearia123';
+const AGENDA_END = '22:00'; // a agenda do admin mostra sempre até esta hora, mesmo que o horário de funcionamento acabe antes
+
+/* ---- Esquemas de cores (iguais aos da app) ---- */
+const THEMES = [
+  {id:'gold',    name:'Ouro Clássico', bg:'#0A0A0A', surface:'#141414', surface2:'#1E1E1E', border:'#2A2A2A', accent:'#B8952A', accentLight:'#D4AF5A', text:'#EEEEEE', text2:'#999999', text3:'#555555', btnFg:'#0A0A0A', light:false},
+  {id:'neon',    name:'Neon Night',    bg:'#0D0D0D', surface:'#151515', surface2:'#1A1A1A', border:'#1E1E1E', accent:'#00F0C0', accentLight:'#00C8A0', text:'#F0F0F0', text2:'#666666', text3:'#333333', btnFg:'#0D0D0D', light:false},
+  {id:'lava',    name:'Lava',          bg:'#111107', surface:'#1A1000', surface2:'#221500', border:'#2A1800', accent:'#FF6B00', accentLight:'#FF8C30', text:'#FFF0E0', text2:'#664400', text3:'#3A2800', btnFg:'#0A0500', light:false},
+  {id:'glacier', name:'Glacier',       bg:'#F4F8FC', surface:'#FFFFFF', surface2:'#E8F0F8', border:'#D0DFF0', accent:'#0F2040', accentLight:'#1A3A6A', text:'#0F2040', text2:'#6080A0', text3:'#A0B8D0', btnFg:'#F4F8FC', light:true},
+  {id:'violet',  name:'Violeta',       bg:'#0E0616', surface:'#140820', surface2:'#1A1028', border:'#1E1030', accent:'#9B59F5', accentLight:'#B87EFF', text:'#EEE8FF', text2:'#4A2880', text3:'#2A1450', btnFg:'#080010', light:false},
+  {id:'slate',   name:'Slate',         bg:'#28282E', surface:'#323238', surface2:'#3C3C44', border:'#3E3E44', accent:'#F0F0F2', accentLight:'#D0D0D8', text:'#F0F0F2', text2:'#6A6A72', text3:'#44444C', btnFg:'#1C1C20', light:false},
+  {id:'amber',   name:'Amber Dusk',    bg:'#1E1A10', surface:'#252018', surface2:'#2E2818', border:'#302818', accent:'#E8A020', accentLight:'#F0C050', text:'#F5EDD0', text2:'#6A5820', text3:'#3A3010', btnFg:'#141008', light:false},
+  {id:'deepsea', name:'Deep Sea',      bg:'#081418', surface:'#0C1E22', surface2:'#102830', border:'#122830', accent:'#00C8B0', accentLight:'#00F0D0', text:'#D0F0EE', text2:'#2A6060', text3:'#164040', btnFg:'#050E12', light:false},
+  {id:'bone',    name:'Bone',          bg:'#F2EDE0', surface:'#FFF8EC', surface2:'#E8E0CC', border:'#D8D0B8', accent:'#1A1614', accentLight:'#3A3020', text:'#1A1614', text2:'#7A6E58', text3:'#A09880', btnFg:'#F2EDE0', light:true},
+  {id:'copper',  name:'Copper',        bg:'#140E0A', surface:'#1C1410', surface2:'#241A12', border:'#261A14', accent:'#C87040', accentLight:'#E09060', text:'#F0E4D8', text2:'#604030', text3:'#382416', btnFg:'#0E0A08', light:false},
+  {id:'forest',  name:'Forest',        bg:'#F5F2EE', surface:'#FFFFFF', surface2:'#EAEAE0', border:'#D8D8CC', accent:'#1E2A1E', accentLight:'#2E4A2E', text:'#1E2A1E', text2:'#607060', text3:'#A0B0A0', btnFg:'#F5F2EE', light:true},
+  {id:'indigo',  name:'Indigo',        bg:'#0E1028', surface:'#141630', surface2:'#1A1C38', border:'#1E2040', accent:'#6070F0', accentLight:'#8090FF', text:'#E8EAFF', text2:'#303870', text3:'#1C2050', btnFg:'#0A0C20', light:false},
+  {id:'rust',    name:'Rust',          bg:'#FAF4E8', surface:'#FFF8EC', surface2:'#EEE4D0', border:'#DDD0B8', accent:'#5C2010', accentLight:'#8A3820', text:'#3A1008', text2:'#8A5840', text3:'#B89080', btnFg:'#FAF4E8', light:true},
+  {id:'chrome',  name:'Chrome',        bg:'#141414', surface:'#1E1E22', surface2:'#28282E', border:'#2A2A30', accent:'#C8C8D0', accentLight:'#E0E0E8', text:'#F0F0F4', text2:'#606068', text3:'#404048', btnFg:'#0A0A0A', light:false},
+  {id:'mercury', name:'Mercury',       bg:'#FFFFFF', surface:'#F8F8F8', surface2:'#F4F4F4', border:'#E8E8E8', accent:'#111111', accentLight:'#444444', text:'#111111', text2:'#888888', text3:'#BBBBBB', btnFg:'#FFFFFF', light:true},
+];
+const themeById = id => THEMES.find(t => t.id === id) || THEMES[0];
+function applyTheme(id){
+  const t = themeById(id), r = document.documentElement.style;
+  const hex2rgb = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16)).join(',');
+  r.setProperty('--bg', t.bg); r.setProperty('--surface', t.surface); r.setProperty('--surface2', t.surface2); r.setProperty('--border', t.border);
+  r.setProperty('--accent', t.accent); r.setProperty('--accent-light', t.accentLight); r.setProperty('--accent-dim', `rgba(${hex2rgb(t.accent)},.16)`);
+  r.setProperty('--text', t.text); r.setProperty('--muted', t.text2); r.setProperty('--muted2', t.text3); r.setProperty('--btn-fg', t.btnFg);
+  // vermelho/verde das marcações mais legíveis em fundos claros
+  r.setProperty('--danger', t.light ? '#8B2E2E' : '#E08A8A'); r.setProperty('--ok', t.light ? '#3E6B3E' : '#9CC09C');
+  document.documentElement.style.colorScheme = t.light ? 'light' : 'dark';
+  document.querySelector('meta[name=theme-color]').setAttribute('content', t.bg);
+  try { localStorage.setItem('theme_id', t.id); } catch(e){}
+}
 const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 /* =========================================================
@@ -380,7 +430,7 @@ const $ = s => document.querySelector(s);
 let toastT;
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
 function openSheet(html){ $('#sheet').innerHTML = html; $('#overlay').classList.add('open'); }
-function closeSheet(){ $('#overlay').classList.remove('open'); }
+function closeSheet(){ $('#overlay').classList.remove('open'); $('#sheet').classList.remove('wide'); }
 function show(v){ document.querySelectorAll('.view').forEach(x => x.classList.remove('active')); $('#v-' + v).classList.add('active'); window.scrollTo(0,0); if (v === 'login'){ $('#pass').value=''; $('#login-err').textContent=''; setTimeout(() => $('#pass').focus(), 50);} }
 function confirmDialog(title, sub, yes){
   return new Promise(res => {
@@ -392,6 +442,17 @@ function confirmDialog(title, sub, yes){
 function badge(status){ const c = status === 'confirmed'; return `<span class="badge ${c ? 'confirmed' : 'pending'}">${c ? 'CONFIRMADA' : 'PENDENTE'}</span>`; }
 function fields(b){ return `<div class="fields"><div class="f"><label>Serviço</label><div>${esc(svcLabel(b.service))}</div></div><div class="f"><label>Dia</label><div>${fmtPretty(b.date)}</div></div><div class="f"><label>Hora</label><div>${b.time}</div></div></div>`; }
 function ticket(b){ return `<div class="card" style="margin-top:14px"><div class="ticket-stripe"></div><div class="in" style="padding:20px"><div class="code">${esc(b.code)}</div><div class="name" style="font-size:24px;margin-top:8px">${esc(b.name)}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}</div></div>`; }
+
+
+function currentThemeId(){ try { return localStorage.getItem('theme_id') || 'gold'; } catch(e){ return 'gold'; } }
+function openThemePicker(){
+  const cur = currentThemeId();
+  $('#sheet').classList.add('wide');
+  openSheet(`<h2 class="small">Esquema de cores</h2><p class="lead">Só se aplica neste dispositivo. Fica guardado para a próxima visita.</p>
+    <div class="themes" style="margin-top:14px">${THEMES.map(t => `<button class="theme ${cur === t.id ? 'on' : ''}" data-theme="${t.id}" title="${t.name}"><span class="sw" style="background:${t.bg};border-color:${t.border}"><i style="background:${t.accent}"></i><i style="background:${t.surface2}"></i></span><small>${t.name}</small></button>`).join('')}</div>
+    <button class="ghost" style="border:0;margin-top:14px" onclick="closeSheet()">Fechar</button>`);
+  $('#sheet').querySelectorAll('[data-theme]').forEach(b => b.onclick = () => { applyTheme(b.dataset.theme); $('#sheet').querySelectorAll('[data-theme]').forEach(x => x.classList.toggle('on', x === b)); });
+}
 
 /* =========================================================
    CLIENTE
@@ -538,7 +599,7 @@ function shiftISO(iso, delta){ const d = parseISO(iso); d.setDate(d.getDate()+de
 
 function renderAgenda(body){
   const s = state.settings, date = admin.agendaDate;
-  const startMin = timeToMin(s.startTime), endMin = timeToMin(s.endTime);
+  const startMin = timeToMin(s.startTime), closeMin = timeToMin(s.endTime), endMin = Math.max(closeMin, timeToMin(AGENDA_END));
   const totalH = Math.max(120, (endMin - startMin) * PX_PER_MIN);
   const dayB = forDay(date), pend = dayB.filter(b => b.status === 'pending').length;
   const d = parseISO(date), isToday = date === todayISO();
@@ -553,11 +614,13 @@ function renderAgenda(body){
       const ls = timeToMin(s.lunchStart), le = timeToMin(s.lunchEnd);
       if (le > startMin && ls < endMin){ const a = Math.max(ls,startMin), z = Math.min(le,endMin); lunch = `<div class="lunch" style="top:${(a-startMin)*PX_PER_MIN}px;height:${(z-a)*PX_PER_MIN}px">ALMOÇO</div>`; }
     }
+    let after = '';
+    if (endMin > closeMin) after = `<div class="after" style="top:${(closeMin-startMin)*PX_PER_MIN}px;height:${(endMin-closeMin)*PX_PER_MIN}px">FORA DE HORÁRIO · SÓ ADMIN</div>`;
     let now = '';
     if (isToday){ const n = new Date(), nm = n.getHours()*60+n.getMinutes(); if (nm >= startMin && nm <= endMin) now = `<div class="now" style="top:${(nm-startMin)*PX_PER_MIN}px"></div>`; }
     const blocks = dayB.map(b => { const dur = svcDur(b.service), h = Math.max(34, dur*PX_PER_MIN);
       return `<div class="block ${b.status}" data-id="${b.id}" style="top:${(timeToMin(b.time)-startMin)*PX_PER_MIN}px;height:${h}px"><div class="t"><span class="tt">${b.time}</span> · ${dur}min</div><div class="nm">${esc(b.name)}</div>${h > 44 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
-    grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${blocks}${now}</div>`;
+    grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${after}${blocks}${now}</div>`;
   }
 
   body.innerHTML = `<div class="agenda-wrap">
@@ -609,7 +672,7 @@ function openDetail(b){
 
 function openNewBooking(date){
   const d = parseISO(date), s = state.settings; let svc = firstSvc(), status = 'confirmed';
-  openSheet(`<h2>Nova marcação</h2><p class="lead">${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)} · podes marcar a qualquer hora</p>
+  openSheet(`<h2>Nova marcação</h2><p class="lead">${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)} · podes marcar a qualquer hora, incluindo fora do horário de funcionamento (até ${AGENDA_END})</p>
     <span class="label">Serviço</span><div class="wrap" id="n-svc">${s.services.map(sv => `<button class="pill ${sv.key === svc ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}<small>${sv.duration} min</small></button>`).join('')}</div>
     <label class="label" for="n-time">Hora (livre — sobreposição permitida)</label><input class="input mono" type="time" step="300" id="n-time" value="${s.startTime}">
     <label class="label" for="n-name">Nome</label><input class="input" id="n-name" placeholder="Nome do cliente">
@@ -701,6 +764,7 @@ function renderSettings(){
    INIT
    ========================================================= */
 (async function init(){
+  try { applyTheme(localStorage.getItem('theme_id') || 'gold'); } catch(e){}
   $('#client-content').innerHTML = '<div class="loading">a carregar…</div>';
   try { state.settings = await sb.getSettings(); state.bookings = await sb.getBookings(); }
   catch(e){ console.error('init', e); }
