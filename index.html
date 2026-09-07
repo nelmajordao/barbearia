@@ -28,7 +28,8 @@
   .topbar{display:flex;justify-content:space-between;align-items:center;padding:22px 20px 16px;border-bottom:1px solid var(--border)}
   .brand{font-family:var(--display);font-size:28px;letter-spacing:1.5px;color:var(--accent);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand-sub{font-size:11px;letter-spacing:2px;color:var(--muted2);font-weight:500;margin-top:2px}
-  .logo{width:46px;height:46px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:22px;box-shadow:0 0 8px rgba(184,149,42,.25);flex-shrink:0;margin-left:10px}
+  .logo{width:46px;height:46px;border-radius:50%;background:#fff;display:grid;place-items:center;overflow:hidden;box-shadow:0 0 8px rgba(184,149,42,.25);flex-shrink:0;margin-left:10px}
+  .logo img{width:100%;height:100%;object-fit:cover;display:block}
 
   .content{flex:1;padding:20px}
   h2{font-family:var(--display);font-size:22px;letter-spacing:.5px;font-weight:400;line-height:1.1}
@@ -139,14 +140,14 @@
 
   <!-- ===== CLIENTE ===== -->
   <section class="view active" id="v-client">
-    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">MARCAÇÕES ONLINE</div></div><div class="logo">🏴‍☠️</div></div>
+    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">MARCAÇÕES ONLINE</div></div><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div>
     <div class="content" id="client-content"></div>
     <button class="bottom-link" onclick="show('login')">Acesso administrativo →</button>
   </section>
 
   <!-- ===== LOGIN ===== -->
   <section class="view" id="v-login">
-    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo">🏴‍☠️</div></div>
+    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div>
     <div class="content">
       <h2>Entrar</h2>
       <p class="lead">Área reservada à gestão da barbearia.</p>
@@ -160,7 +161,7 @@
 
   <!-- ===== ADMIN ===== -->
   <section class="view" id="v-admin">
-    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo">🏴‍☠️</div></div>
+    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div>
     <div class="content">
       <div class="between"><h2>Marcações</h2><button class="sm accent" onclick="openSettings()">⚙ Definições</button></div>
       <div class="tabs" id="tabs"></div>
@@ -171,7 +172,7 @@
 
   <!-- ===== DEFINIÇÕES ===== -->
   <section class="view" id="v-settings">
-    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo">🏴‍☠️</div></div>
+    <div class="topbar"><div><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div>
     <div class="content" id="settings-content"></div>
   </section>
 </div>
