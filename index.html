@@ -421,7 +421,7 @@ async function moveBooking(id, newTime){ const b = state.bookings.find(x => x.id
 async function deleteBooking(id){ await sb.remove(id); state.bookings = state.bookings.filter(x => x.id !== id); }
 async function clearPast(){ const t = todayISO(); for (const b of state.bookings.filter(b => b.status !== 'deleted' && b.date < t)) await sb.remove(b.id); await reload(); }
 async function saveSettings(){ await sb.saveSettings(state.settings); }
-function lookupByPhone(p){ return state.bookings.filter(b => b.phone === p && b.status !== 'deleted').sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time)); }
+function lookupByPhone(p){ const t = todayISO(); return state.bookings.filter(b => b.phone === p && b.status !== 'deleted' && b.date >= t).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time)); }
 
 /* =========================================================
    UI helpers
@@ -510,7 +510,7 @@ function renderClient(){
     <p class="lead">Vê o estado pelo teu número de telemóvel.</p>
     <input class="input" id="c-lookup" type="tel" placeholder="O teu número de telemóvel" value="${esc(c.lookup)}">
     <div style="margin-top:10px"><button class="ghost" id="c-lookup-btn">Ver as minhas marcações</button></div>
-    <div id="c-lookup-res">${c.lookupResults === null ? '' : (c.lookupResults.length ? c.lookupResults.map(ticket).join('') : '<div class="empty">Nenhuma marcação encontrada para este número.</div>')}</div>
+    <div id="c-lookup-res">${c.lookupResults === null ? '' : (c.lookupResults.length ? c.lookupResults.map(ticket).join('') : '<div class="empty">Não tens marcações futuras com este número.</div>')}</div>
     </div></div>`;
 
   const syncInputs = () => { c.name = $('#c-name').value; c.phone = $('#c-phone').value; c.lookup = $('#c-lookup').value; };
