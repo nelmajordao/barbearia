@@ -189,7 +189,7 @@
   <section class="view active" id="v-client">
     <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">MARCAÇÕES ONLINE</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
     <div class="content" id="client-content"></div>
-    <button class="bottom-link" onclick="show('login')">Acesso administrativo →</button>
+    <button class="bottom-link" onclick="auth.loggedIn ? enterAdmin() : show('login')">Acesso administrativo →</button>
   </section>
 
   <!-- ===== LOGIN ===== -->
@@ -198,6 +198,8 @@
     <div class="content">
       <h2>Entrar</h2>
       <p class="lead">Área reservada à gestão da barbearia.</p>
+      <label class="label" for="email">Email</label>
+      <input class="input" id="email" type="email" placeholder="admin@…" autocomplete="username">
       <label class="label" for="pass">Palavra-passe</label>
       <input class="input" id="pass" type="password" placeholder="••••••••" autocomplete="current-password">
       <div class="err" id="login-err"></div>
@@ -213,7 +215,7 @@
       <div class="between"><h2>Marcações</h2><button class="sm accent" onclick="openSettings()">⚙ Definições</button></div>
       <div class="tabs" id="tabs"></div>
       <div id="admin-body"></div>
-      <div style="margin-top:24px"><button class="ghost" onclick="show('client')">Sair do painel</button></div>
+      <div style="margin-top:24px"><button class="ghost" onclick="logout()">Terminar sessão</button></div>
     </div>
   </section>
 
@@ -234,8 +236,6 @@
 const SB_URL = 'https://unyonayejjwjdfqhjecu.supabase.co';
 const SB_KEY = 'sb_publishable_xPdYjv-TX-7cMQVKptDHxg_hPr72BFO';
 const REST = SB_URL + '/rest/v1';
-const HEADERS = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
-const DEFAULT_PASSWORD = 'barbearia123';
 const AGENDA_END = '22:00'; // a agenda do admin mostra sempre até esta hora, mesmo que o horário de funcionamento acabe antes
 
 /* ---- Esquemas de cores (iguais aos da app) ---- */
@@ -274,21 +274,71 @@ const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 /* =========================================================
    SUPABASE
    ========================================================= */
+/* ---- Sessão de administrador (Supabase Auth) ---- */
+const auth = {
+  session: null,
+  load(){ try { this.session = JSON.parse(sessionStorage.getItem('sb_session') || 'null'); } catch(e){ this.session = null; } return this.session; },
+  save(sess){ this.session = sess; try { sess ? sessionStorage.setItem('sb_session', JSON.stringify(sess)) : sessionStorage.removeItem('sb_session'); } catch(e){} },
+  get loggedIn(){ return !!(this.session && this.session.access_token); },
+  async signIn(email, password){
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, { method:'POST', headers:{ apikey: SB_KEY, 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error_description || j.msg || j.error || 'Credenciais inválidas');
+    this.save({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in - 60) * 1000, email: j.user?.email });
+  },
+  async refresh(){
+    if (!this.session?.refresh_token) return false;
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method:'POST', headers:{ apikey: SB_KEY, 'Content-Type':'application/json' }, body: JSON.stringify({ refresh_token: this.session.refresh_token }) });
+    if (!r.ok){ this.save(null); return false; }
+    const j = await r.json();
+    this.save({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in - 60) * 1000, email: j.user?.email });
+    return true;
+  },
+  async token(){
+    if (!this.session) return null;
+    if (Date.now() > this.session.expires_at && !(await this.refresh())) return null;
+    return this.session.access_token;
+  },
+  async signOut(){
+    const t = this.session?.access_token;
+    this.save(null);
+    if (t) fetch(`${SB_URL}/auth/v1/logout`, { method:'POST', headers:{ apikey: SB_KEY, Authorization: 'Bearer ' + t } }).catch(() => {});
+  },
+  async changePassword(newPass){
+    const t = await this.token(); if (!t) throw new Error('Sessão expirada');
+    const r = await fetch(`${SB_URL}/auth/v1/user`, { method:'PUT', headers:{ apikey: SB_KEY, Authorization: 'Bearer ' + t, 'Content-Type':'application/json' }, body: JSON.stringify({ password: newPass }) });
+    if (!r.ok){ const j = await r.json().catch(() => ({})); throw new Error(j.msg || j.error_description || 'Erro ao alterar palavra-passe'); }
+  },
+};
+async function hdrs(){ const t = await auth.token(); return { apikey: SB_KEY, Authorization: 'Bearer ' + (t || SB_KEY), 'Content-Type': 'application/json' }; }
+async function rpc(name, args){
+  const r = await fetch(`${REST}/rpc/${name}`, { method:'POST', headers: await hdrs(), body: JSON.stringify(args || {}) });
+  const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch(e){}
+  if (!r.ok) throw new Error((j && (j.message || j.hint)) || `${name} ${r.status}`);
+  return j;
+}
+
 const sb = {
+  /* público (anon) */
+  async getPublicSettings(){ const j = await rpc('public_settings'); return fromJsonSettings(j || {}); },
+  async getOccupancy(){ return (await rpc('public_occupancy')) || []; },
+  async clientLookup(phone){ return (await rpc('client_lookup', { p_phone: phone })) || []; },
+  async createClientBooking(b){ return rpc('create_client_booking', { p_name: b.name, p_phone: b.phone, p_service: b.service, p_date: b.date, p_time: b.time }); },
+  /* admin (sessão) */
   async getBookings(){
-    const r = await fetch(`${REST}/bookings?select=*&order=date.asc,time.asc`, { headers: HEADERS });
+    const r = await fetch(`${REST}/bookings?select=*&order=date.asc,time.asc`, { headers: await hdrs() });
     if (!r.ok) throw new Error('getBookings ' + r.status);
     return (await r.json()).filter(b => b.status !== 'deleted');
   },
   async getSettings(){
-    const r = await fetch(`${REST}/settings?id=eq.1&select=data`, { headers: HEADERS });
+    const r = await fetch(`${REST}/settings?id=eq.1&select=data`, { headers: await hdrs() });
     if (r.ok){ const rows = await r.json(); if (rows.length && rows[0].data) return fromJsonSettings(rows[0].data); }
-    return defaultSettings();
+    throw new Error('getSettings ' + r.status);
   },
-  async insert(b){ const r = await fetch(`${REST}/bookings`, { method:'POST', headers:{...HEADERS, Prefer:'return=minimal'}, body: JSON.stringify(b) }); if (!r.ok) throw new Error('insert ' + r.status); },
-  async update(b){ const r = await fetch(`${REST}/bookings?id=eq.${encodeURIComponent(b.id)}`, { method:'PATCH', headers:{...HEADERS, Prefer:'return=minimal'}, body: JSON.stringify(b) }); if (!r.ok) throw new Error('update ' + r.status); },
-  async remove(id){ const r = await fetch(`${REST}/bookings?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', headers:{...HEADERS, Prefer:'return=minimal'} }); if (!r.ok) throw new Error('delete ' + r.status); },
-  async saveSettings(s){ const r = await fetch(`${REST}/settings?id=eq.1`, { method:'PATCH', headers:{...HEADERS, Prefer:'return=minimal'}, body: JSON.stringify({ data: toJsonSettings(s) }) }); if (!r.ok) throw new Error('saveSettings ' + r.status); },
+  async insert(b){ const r = await fetch(`${REST}/bookings`, { method:'POST', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(b) }); if (!r.ok) throw new Error('insert ' + r.status); },
+  async update(b){ const r = await fetch(`${REST}/bookings?id=eq.${encodeURIComponent(b.id)}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(b) }); if (!r.ok) throw new Error('update ' + r.status); },
+  async remove(id){ const r = await fetch(`${REST}/bookings?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('delete ' + r.status); },
+  async saveSettings(s){ const r = await fetch(`${REST}/settings?id=eq.1`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify({ data: toJsonSettings(s) }) }); if (!r.ok) throw new Error('saveSettings ' + r.status); },
 };
 
 /* =========================================================
@@ -297,22 +347,23 @@ const sb = {
 function defaultSettings(){
   return { workingDays:[1,2,4,5,6], startTime:'09:00', endTime:'19:00',
     services:[{key:'corte_normal',label:'Corte normal',duration:30},{key:'corte_tecnico',label:'Corte técnico',duration:45},{key:'barba',label:'Barba',duration:20}],
-    lunchEnabled:true, lunchStart:'13:00', lunchEnd:'14:00', blacklist:[], adminPasswordHash:null };
+    lunchEnabled:true, lunchStart:'13:00', lunchEnd:'14:00', blacklist:[] };
 }
 function fromJsonSettings(j){
   const d = defaultSettings();
   return { workingDays: j.workingDays ?? d.workingDays, startTime: j.startTime ?? d.startTime, endTime: j.endTime ?? d.endTime,
     services: j.services ?? d.services, lunchEnabled: j.lunch?.enabled ?? true, lunchStart: j.lunch?.start ?? '13:00', lunchEnd: j.lunch?.end ?? '14:00',
-    blacklist: (j.blacklist ?? []).map(String), adminPasswordHash: j.adminPasswordHash ?? null };
+    blacklist: (j.blacklist ?? []).map(String) };
 }
 function toJsonSettings(s){
   const o = { workingDays:s.workingDays, startTime:s.startTime, endTime:s.endTime, services:s.services,
     lunch:{enabled:s.lunchEnabled, start:s.lunchStart, end:s.lunchEnd}, blacklist:s.blacklist };
-  if (s.adminPasswordHash) o.adminPasswordHash = s.adminPasswordHash;
   return o;
 }
 
-const state = { bookings: [], settings: defaultSettings(), loading: true, saving: false };
+const state = { bookings: [], occupancy: [], settings: defaultSettings(), loading: true, saving: false };
+// ocupação usada no cálculo de horários: como admin, deriva das marcações; como visitante, vem do servidor sem dados pessoais
+function occupancyFor(iso){ const src = auth.loggedIn ? state.bookings.filter(b => b.status !== 'deleted') : state.occupancy; return src.filter(o => o.date === iso).map(o => ({ time: o.time, duration: o.duration || (o.service ? svcDur(o.service) : 30) })); }
 
 const svcLabel = k => (state.settings.services.find(s => s.key === k) || {label:k}).label;
 const svcDur   = k => (state.settings.services.find(s => s.key === k) || {duration:30}).duration;
@@ -337,70 +388,39 @@ function genId(){ return `id_${Date.now()}_${Math.floor(Math.random()*1000)}`; }
 function forDay(iso){ return state.bookings.filter(b => b.date === iso && b.status !== 'deleted').sort((a,b) => a.time.localeCompare(b.time)); }
 
 function availableSlots(iso, serviceKey){
-  if (!iso) return [];
+  if (!iso || iso < todayISO()) return [];
   const s = state.settings, dur = svcDur(serviceKey);
   const dow = parseISO(iso).getDay();
   if (!s.workingDays.includes(dow)) return [];
   const startMin = timeToMin(s.startTime), endMin = timeToMin(s.endTime);
   const lunchStart = s.lunchEnabled ? timeToMin(s.lunchStart) : null;
   const lunchEnd   = s.lunchEnabled ? timeToMin(s.lunchEnd)   : null;
-  const dayB = forDay(iso);
+  const dayB = occupancyFor(iso);
   const isToday = iso === todayISO();
   const now = new Date(), nowMin = now.getHours()*60 + now.getMinutes();
   const out = [];
   for (let t = startMin; t + dur <= endMin; t += 15){
     if (isToday && t <= nowMin + 15) continue;
     if (lunchEnd !== null && t < lunchEnd && t + dur > lunchStart) continue;
-    const overlaps = dayB.some(b => { const bs = timeToMin(b.time), be = bs + svcDur(b.service); return t < be && t + dur > bs; });
+    const overlaps = dayB.some(b => { const bs = timeToMin(b.time), be = bs + b.duration; return t < be && t + dur > bs; });
     if (!overlaps) out.push(minToTime(t));
   }
   return out;
 }
 
-/* ---- SHA-256 → base64 (compatível com a app) ---- */
-async function sha256b64(str){
-  const bytes = new TextEncoder().encode(str);
-  let digest;
-  if (crypto.subtle) digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
-  else digest = sha256Fallback(bytes);
-  return btoa(String.fromCharCode(...digest));
-}
-function sha256Fallback(msg){ // implementação compacta para contextos não seguros (http://)
-  const K = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
-  const H = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
-  const l = msg.length, padLen = ((l + 9 + 63) >> 6) << 6, m = new Uint8Array(padLen);
-  m.set(msg); m[l] = 0x80; const dv = new DataView(m.buffer); dv.setUint32(padLen-4, l*8);
-  const W = new Uint32Array(64), rotr = (x,n) => (x>>>n)|(x<<(32-n));
-  for (let i = 0; i < padLen; i += 64){
-    for (let t=0;t<16;t++) W[t] = dv.getUint32(i+t*4);
-    for (let t=16;t<64;t++){ const s0 = rotr(W[t-15],7)^rotr(W[t-15],18)^(W[t-15]>>>3), s1 = rotr(W[t-2],17)^rotr(W[t-2],19)^(W[t-2]>>>10); W[t] = (W[t-16]+s0+W[t-7]+s1)>>>0; }
-    let [a,b,c,d,e,f,g,h] = H;
-    for (let t=0;t<64;t++){ const S1 = rotr(e,6)^rotr(e,11)^rotr(e,25), ch = (e&f)^(~e&g), t1 = (h+S1+ch+K[t]+W[t])>>>0, S0 = rotr(a,2)^rotr(a,13)^rotr(a,22), maj = (a&b)^(a&c)^(b&c), t2 = (S0+maj)>>>0; h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0; }
-    H[0]+=a; H[1]+=b; H[2]+=c; H[3]+=d; H[4]+=e; H[5]+=f; H[6]+=g; H[7]+=h;
-  }
-  const out = new Uint8Array(32); const ov = new DataView(out.buffer); H.forEach((v,i) => ov.setUint32(i*4, v)); return out;
-}
-async function checkPassword(input){
-  if (!state.settings.adminPasswordHash) return input === DEFAULT_PASSWORD;
-  return (await sha256b64(input)) === state.settings.adminPasswordHash;
-}
-
 /* =========================================================
    AÇÕES (idênticas a AppState)
    ========================================================= */
-async function reload(){ try { state.bookings = await sb.getBookings(); } catch(e){ console.warn('reload', e); } }
-
+async function reload(){
+  try { if (auth.loggedIn) state.bookings = await sb.getBookings(); else state.occupancy = await sb.getOccupancy(); }
+  catch(e){ console.warn('reload', e); }
+}
 async function createClientBooking({name, phone, service, date, time}){
-  const np = normPhone(phone);
-  if (state.settings.blacklist.includes(np)) return 'Não é possível criar marcações neste momento. Por favor contacte a barbearia diretamente.';
   state.saving = true;
   try {
-    await reload();
-    if (state.bookings.some(b => normPhone(b.phone) === np && b.status === 'pending')) return 'Já tens uma marcação pendente. Aguarda confirmação antes de pedir outra.';
-    if (!availableSlots(date, service).includes(time)) return 'Esse horário já não está disponível. Escolhe outra hora.';
-    const b = { id: genId(), code: genCode(), name, phone, service, date, time, duration: svcDur(service), status: 'pending', created_at: new Date().toISOString(), created_by: null };
-    await sb.insert(b); state.bookings.push(b); return null;
-  } catch(e){ console.error(e); return 'Erro ao guardar. Tenta novamente.'; }
+    const row = await sb.createClientBooking({ name, phone, service, date, time }); // validação toda no servidor
+    client.submitted = row; state.occupancy.push({ date: row.date, time: row.time, duration: row.duration }); return null;
+  } catch(e){ console.error(e); return e.message && !/^create_client_booking/.test(e.message) ? e.message : 'Erro ao guardar. Tenta novamente.'; }
   finally { state.saving = false; }
 }
 async function createAdminBooking({name, phone, service, date, time, status}){
@@ -421,7 +441,7 @@ async function moveBooking(id, newTime){ const b = state.bookings.find(x => x.id
 async function deleteBooking(id){ await sb.remove(id); state.bookings = state.bookings.filter(x => x.id !== id); }
 async function clearPast(){ const t = todayISO(); for (const b of state.bookings.filter(b => b.status !== 'deleted' && b.date < t)) await sb.remove(b.id); await reload(); }
 async function saveSettings(){ await sb.saveSettings(state.settings); }
-function lookupByPhone(p){ const t = todayISO(); return state.bookings.filter(b => b.phone === p && b.status !== 'deleted' && b.date >= t).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time)); }
+async function lookupByPhone(p){ try { return await sb.clientLookup(p); } catch(e){ console.warn(e); return []; } }
 
 /* =========================================================
    UI helpers
@@ -431,7 +451,7 @@ let toastT;
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
 function openSheet(html){ $('#sheet').innerHTML = html; $('#overlay').classList.add('open'); }
 function closeSheet(){ $('#overlay').classList.remove('open'); $('#sheet').classList.remove('wide'); }
-function show(v){ document.querySelectorAll('.view').forEach(x => x.classList.remove('active')); $('#v-' + v).classList.add('active'); window.scrollTo(0,0); if (v === 'login'){ $('#pass').value=''; $('#login-err').textContent=''; setTimeout(() => $('#pass').focus(), 50);} }
+function show(v){ document.querySelectorAll('.view').forEach(x => x.classList.remove('active')); $('#v-' + v).classList.add('active'); window.scrollTo(0,0); if (v === 'login'){ $('#pass').value=''; $('#login-err').textContent=''; setTimeout(() => ($('#email').value ? $('#pass') : $('#email')).focus(), 50);} }
 function confirmDialog(title, sub, yes){
   return new Promise(res => {
     openSheet(`<h2 class="small">${esc(title)}</h2>${sub ? `<p class="lead">${esc(sub)}</p>` : ''}<div class="row" style="margin-top:16px"><button class="ghost" id="dlg-no">Não</button><button class="ghost danger" id="dlg-yes">${esc(yes || 'Sim')}</button></div>`);
@@ -526,18 +546,27 @@ function renderClient(){
     c.err = null; $('#c-submit').disabled = true;
     const err = await createClientBooking({ name, phone, service: c.service, date: c.date, time: c.time });
     if (err){ c.err = err; return renderClient(); }
-    c.submitted = state.bookings[state.bookings.length - 1]; renderClient();
+    renderClient();
   };
-  $('#c-lookup-btn').onclick = async () => { syncInputs(); await reload(); c.lookupResults = lookupByPhone(c.lookup.trim()); renderClient(); $('#c-lookup-res').scrollIntoView({behavior:'smooth', block:'start'}); };
+  $('#c-lookup-btn').onclick = async () => { syncInputs(); c.lookupResults = await lookupByPhone(c.lookup.trim()); renderClient(); $('#c-lookup-res').scrollIntoView({behavior:'smooth', block:'start'}); };
 }
 
 /* =========================================================
    LOGIN
    ========================================================= */
-async function tryLogin(){
-  if (await checkPassword($('#pass').value)){ admin.tab = 'pendentes'; admin.agendaDate = todayISO(); await reload(); renderAdmin(); show('admin'); }
-  else $('#login-err').textContent = 'Palavra-passe incorreta.';
+async function enterAdmin(){
+  admin.tab = 'pendentes'; admin.agendaDate = todayISO();
+  try { state.settings = await sb.getSettings(); state.bookings = await sb.getBookings(); }
+  catch(e){ await auth.signOut(); $('#login-err').textContent = 'Esta conta não tem permissões de administrador.'; show('login'); return; }
+  renderAdmin(); show('admin');
 }
+async function tryLogin(){
+  const btn = $('#login-btn'); btn.disabled = true; $('#login-err').textContent = '';
+  try { await auth.signIn($('#email').value.trim(), $('#pass').value); await enterAdmin(); }
+  catch(e){ $('#login-err').textContent = /invalid/i.test(e.message) ? 'Email ou palavra-passe incorretos.' : e.message; }
+  finally { btn.disabled = false; }
+}
+async function logout(){ await auth.signOut(); state.bookings = []; await reload(); show('client'); renderClient(); }
 $('#login-btn').onclick = tryLogin;
 $('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 
@@ -721,7 +750,7 @@ function renderSettings(){
     <div id="s-svcs">${d.services.map((sv,i) => `<div class="svc-row"><input class="input" data-sl="${i}" placeholder="Nome do serviço" value="${esc(sv.label)}"><input class="input mono" type="number" min="5" data-sd="${i}" placeholder="min" value="${sv.duration}"><button class="x" data-sx="${i}" title="Remover">✕</button></div>`).join('')}</div>
     <button class="ghost" id="s-add">+ Adicionar serviço</button>
     <label class="label" for="s-pass">Alterar palavra-passe de administrador</label>
-    <input class="input" id="s-pass" type="text" placeholder="Deixa em branco para manter" value="${esc(d.pass)}" autocomplete="off">
+    <input class="input" id="s-pass" type="password" placeholder="Deixa em branco para manter (mín. 6 caracteres)" value="${esc(d.pass)}" autocomplete="new-password">
     <div style="margin-top:24px"><button class="btn" id="s-save">Guardar definições</button></div>
     <div style="height:30px"></div>
     <span class="label">Lista negra de números</span>
@@ -746,8 +775,10 @@ function renderSettings(){
     const svc = d.services.filter(x => x.label.trim()).map((x,i) => ({ key: x.key || `svc_${Date.now()}_${i}`, label: x.label.trim(), duration: Math.max(5, x.duration || 0) }));
     const s = state.settings;
     Object.assign(s, { workingDays: d.workingDays, startTime: d.startTime, endTime: d.endTime, lunchEnabled: d.lunchEnabled, lunchStart: d.lunchStart, lunchEnd: d.lunchEnd, services: svc.length ? svc : defaultSettings().services });
-    if (d.pass.trim()) s.adminPasswordHash = await sha256b64(d.pass.trim());
-    try { await saveSettings(); toast('Definições guardadas'); show('admin'); renderAdmin(); } catch(e){ toast('Erro ao guardar'); console.error(e); }
+    try {
+      if (d.pass.trim()){ if (d.pass.trim().length < 6) { toast('Palavra-passe: mínimo 6 caracteres'); return; } await auth.changePassword(d.pass.trim()); }
+      await saveSettings(); toast('Definições guardadas'); show('admin'); renderAdmin();
+    } catch(e){ toast(e.message || 'Erro ao guardar'); console.error(e); }
   };
   $('#s-bl-add').onclick = async () => {
     sync(); const np = normPhone(d.blInput); if (!np) return;
@@ -766,7 +797,8 @@ function renderSettings(){
 (async function init(){
   try { applyTheme(localStorage.getItem('theme_id') || 'gold'); } catch(e){}
   $('#client-content').innerHTML = '<div class="loading">a carregar…</div>';
-  try { state.settings = await sb.getSettings(); state.bookings = await sb.getBookings(); }
+  auth.load();
+  try { state.settings = await sb.getPublicSettings(); state.occupancy = await sb.getOccupancy(); }
   catch(e){ console.error('init', e); }
   state.loading = false;
   client.service = firstSvc();
