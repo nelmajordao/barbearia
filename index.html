@@ -118,12 +118,14 @@
   .lunch{position:absolute;left:48px;right:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted2)}
   .now{position:absolute;left:48px;right:0;height:2px;background:var(--accent);z-index:3}
   .after{position:absolute;left:48px;right:0;border-top:1px dashed var(--muted2);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted2);background:repeating-linear-gradient(135deg,transparent 0 10px,rgba(255,255,255,.02) 10px 20px)}
-  .block{position:absolute;left:56px;right:0;border-radius:9px;padding:6px 10px 6px 22px;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:grab;z-index:2;touch-action:none}
+  .block{position:absolute;left:56px;right:0;border-radius:9px;padding:8px 10px 6px 14px;display:flex;flex-direction:column;justify-content:center;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:grab;z-index:2;touch-action:none}
   .block.pending{background:var(--pending-bg);border-left-color:var(--pending)}
   .block.confirmed{background:var(--confirmed-bg);border-left-color:var(--confirmed)}
   .block.dragging{box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:5;cursor:grabbing}
-  .block .t{font-family:var(--mono);font-size:10px;color:var(--muted2)}
-  .block .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .block .ln{display:flex;align-items:baseline;gap:8px;min-width:0}
+  .block .tt{font-family:var(--mono);font-size:12px;color:var(--text);flex-shrink:0}
+  .block .t{font-family:var(--mono);font-size:10px;color:var(--muted2);flex-shrink:0}
+  .block .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
   .block .sv{font-size:11px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   /* Sheets & toast */
@@ -635,7 +637,7 @@ function renderAgenda(body){
   const pastCount = state.bookings.filter(b => b.status !== 'deleted' && b.date < todayISO()).length;
 
   let grid = '';
-  if (dayB.length){
+  {
     let lines = '';
     for (let m = Math.ceil(startMin/60)*60; m <= endMin; m += 60) lines += `<div class="hline" style="top:${(m-startMin)*PX_PER_MIN}px"><span>${minToTime(m)}</span><i></i></div>`;
     let lunch = '';
@@ -648,7 +650,7 @@ function renderAgenda(body){
     let now = '';
     if (isToday){ const n = new Date(), nm = n.getHours()*60+n.getMinutes(); if (nm >= startMin && nm <= endMin) now = `<div class="now" style="top:${(nm-startMin)*PX_PER_MIN}px"></div>`; }
     const blocks = dayB.map(b => { const dur = svcDur(b.service), h = Math.max(34, dur*PX_PER_MIN);
-      return `<div class="block ${b.status}" data-id="${b.id}" style="top:${(timeToMin(b.time)-startMin)*PX_PER_MIN}px;height:${h}px"><div class="t"><span class="tt">${b.time}</span> · ${dur}min</div><div class="nm">${esc(b.name)}</div>${h > 44 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
+      return `<div class="block ${b.status}" data-id="${b.id}" style="top:${(timeToMin(b.time)-startMin)*PX_PER_MIN}px;height:${h}px"><div class="ln"><span class="tt">${b.time}</span><span class="nm">${esc(b.name)}</span><span class="t">${dur}min</span></div>${h > 52 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
     grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${after}${blocks}${now}</div>`;
   }
 
@@ -656,7 +658,7 @@ function renderAgenda(body){
     <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3>${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''}</h3><button class="sm" id="ag-next">▶</button></div>
     <div class="agenda-count">${dayB.length} marcaç${dayB.length === 1 ? 'ão' : 'ões'}${pend ? ` · ${pend} pendente${pend > 1 ? 's' : ''}` : ''}</div>
     <button class="ghost" id="ag-new" style="border-color:rgba(201,161,74,.4);color:var(--accent);font-size:13px">+ Nova marcação neste dia</button>
-    ${dayB.length ? '<p class="hint">Clica numa marcação para ver/editar · arrasta para cima/baixo para mudar a hora.</p>' : '<div class="empty" style="margin-top:8px">Sem marcações neste dia.</div>'}
+    <p class="hint">${dayB.length ? 'Clica numa marcação para ver/editar · arrasta para mudar a hora · ' : 'Sem marcações neste dia · '}duplo clique num espaço vazio para marcar nessa hora.</p>
     ${grid}
     ${pastCount ? `<div style="margin-top:18px"><button class="ghost danger" id="ag-clear" style="font-size:13px">Apagar marcações de dias anteriores (${pastCount})</button></div>` : ''}</div>`;
 
@@ -665,6 +667,19 @@ function renderAgenda(body){
   $('#ag-new').onclick = () => openNewBooking(date);
   const clr = $('#ag-clear'); if (clr) clr.onclick = async () => { if (await confirmDialog('Apagar marcações passadas?','Esta ação é irreversível.','Sim, apagar')){ await clearPast(); toast('Apagadas'); renderAdmin(); } };
   body.querySelectorAll('.block').forEach(el => bindDrag(el, startMin, endMin));
+  const gridEl = $('#grid');
+  if (gridEl){
+    // duplo clique (rato) ou duplo toque (dedo) em espaço vazio → nova marcação nessa hora
+    const openAt = clientY => { const rect = gridEl.getBoundingClientRect(); const min = Math.round(((clientY - rect.top) / PX_PER_MIN) / 15) * 15; openNewBooking(date, minToTime(Math.min(endMin - 15, Math.max(startMin, startMin + min)))); };
+    gridEl.addEventListener('dblclick', e => { if (!e.target.closest('.block')) openAt(e.clientY); });
+    let lastTap = 0, lastY = 0;
+    gridEl.addEventListener('pointerup', e => {
+      if (e.pointerType === 'mouse' || e.target.closest('.block')) return;
+      const now = Date.now();
+      if (now - lastTap < 350 && Math.abs(e.clientY - lastY) < 30){ lastTap = 0; openAt(e.clientY); }
+      else { lastTap = now; lastY = e.clientY; }
+    });
+  }
 }
 
 function bindDrag(el, startMin, endMin){
@@ -699,11 +714,11 @@ function openDetail(b){
   $('#d-delete').onclick = async () => { await deleteBooking(b.id); closeSheet(); toast('Eliminada'); renderAdmin(); };
 }
 
-function openNewBooking(date){
+function openNewBooking(date, initialTime){
   const d = parseISO(date), s = state.settings; let svc = firstSvc(), status = 'confirmed';
   openSheet(`<h2>Nova marcação</h2><p class="lead">${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)} · podes marcar a qualquer hora, incluindo fora do horário de funcionamento (até ${AGENDA_END})</p>
     <span class="label">Serviço</span><div class="wrap" id="n-svc">${s.services.map(sv => `<button class="pill ${sv.key === svc ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}<small>${sv.duration} min</small></button>`).join('')}</div>
-    <label class="label" for="n-time">Hora (livre — sobreposição permitida)</label><input class="input mono" type="time" step="300" id="n-time" value="${s.startTime}">
+    <label class="label" for="n-time">Hora (livre — sobreposição permitida)</label><input class="input mono" type="time" step="300" id="n-time" value="${initialTime || s.startTime}">
     <label class="label" for="n-name">Nome</label><input class="input" id="n-name" placeholder="Nome do cliente">
     <label class="label" for="n-phone">Telemóvel</label><input class="input" id="n-phone" type="tel" placeholder="9xx xxx xxx">
     <span class="label">Estado</span><div class="row" id="n-status"><button class="pill" data-s="pending">Pendente</button><button class="pill on" data-s="confirmed">Confirmada</button></div>
