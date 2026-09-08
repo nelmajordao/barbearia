@@ -251,6 +251,46 @@
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
 
+<script type="module">
+// ---- Firebase Cloud Messaging (Web Push) ----
+// >>> Substitui pelos valores da app Web no Firebase (Project settings → General → Your apps → Web)
+//     e a chave VAPID em Cloud Messaging → Web Push certificates → "Key pair".
+const FIREBASE_CONFIG = {
+  apiKey: "FIREBASE_API_KEY",
+  authDomain: "FIREBASE_PROJECT_ID.firebaseapp.com",
+  projectId: "FIREBASE_PROJECT_ID",
+  messagingSenderId: "FIREBASE_SENDER_ID",
+  appId: "FIREBASE_APP_ID",
+};
+const VAPID_KEY = "FIREBASE_VAPID_KEY";
+
+window.fcm = { ready: false, supported: false };
+try {
+  if ('serviceWorker' in navigator && 'Notification' in window && !FIREBASE_CONFIG.apiKey.startsWith('FIREBASE_')) {
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+    const { getMessaging, getToken, deleteToken, onMessage, isSupported } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js');
+    if (await isSupported()) {
+      const app = initializeApp(FIREBASE_CONFIG);
+      const messaging = getMessaging(app);
+      const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      window.fcm = {
+        ready: true, supported: true,
+        permission: () => Notification.permission,
+        // pede permissão (se necessário) e devolve o token, ou null se recusado
+        async getToken(){
+          if (Notification.permission === 'denied') return null;
+          if (Notification.permission !== 'granted' && (await Notification.requestPermission()) !== 'granted') return null;
+          return getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+        },
+        deleteToken: () => deleteToken(messaging).catch(() => {}),
+      };
+      // página aberta: mostrar aviso e avisar a app
+      onMessage(messaging, (m) => window.dispatchEvent(new CustomEvent('fcm-message', { detail: m })));
+    }
+  }
+} catch (e) { console.warn('FCM indisponível', e); }
+window.dispatchEvent(new Event('fcm-ready'));
+</script>
 <script>
 /* =========================================================
    CONFIG — mesmo Supabase da app
@@ -349,6 +389,49 @@ async function rpc(name, args){
   if (!r.ok) throw new Error((j && (j.message || j.hint)) || `${name} ${r.status}`);
   return j;
 }
+
+
+/* =========================================================
+   PUSH (Web) — admin e clientes
+   ========================================================= */
+const push = {
+  get available(){ return !!(window.fcm && window.fcm.supported); },
+  async registerAdmin(){
+    if (!this.available || !auth.loggedIn) return;
+    try {
+      const token = await window.fcm.getToken(); if (!token) return;
+      const r = await fetch(`${REST}/admin_devices?on_conflict=token`, { method:'POST', headers:{...await hdrs(), Prefer:'resolution=merge-duplicates,return=minimal'},
+        body: JSON.stringify({ token, email: auth.session?.email || '', platform: 'web', updated_at: new Date().toISOString() }) });
+      if (!r.ok) console.warn('admin_devices', r.status);
+    } catch(e){ console.warn('registerAdmin', e); }
+  },
+  async unregisterAdmin(){
+    if (!this.available) return;
+    try {
+      const token = await window.fcm.getToken(); if (!token) return;
+      await fetch(`${REST}/admin_devices?token=eq.${encodeURIComponent(token)}`, { method:'DELETE', headers: await hdrs() });
+    } catch(e){}
+  },
+  // cliente: devolve null em sucesso, ou a mensagem de erro
+  async registerClient(phone){
+    if (!this.available) return 'Este browser não suporta notificações.';
+    try {
+      const token = await window.fcm.getToken();
+      if (!token) return 'Permissão de notificações recusada. Podes activá-la nas definições do browser.';
+      await rpc('register_client_push', { p_phone: phone, p_token: token });
+      return null;
+    } catch(e){ console.warn('registerClient', e); return 'Não foi possível activar o aviso. Tenta mais tarde.'; }
+  },
+};
+// mensagem recebida com a página aberta
+window.addEventListener('fcm-message', async e => {
+  const n = e.detail?.notification || {};
+  toast(`${n.title || 'Notificação'}${n.body ? ' — ' + n.body : ''}`, 6000);
+  try { navigator.vibrate && navigator.vibrate(120); } catch(_){}
+  if (auth.loggedIn){ await reload(); if ($('#v-admin').classList.contains('active')) renderAdmin(); }
+});
+// painel aberto: actualização periódica de segurança (caso as notificações não estejam autorizadas)
+setInterval(async () => { if (auth.loggedIn && $('#v-admin').classList.contains('active') && !$('#overlay').classList.contains('open')){ const n = state.bookings.length; await reload(); if (state.bookings.length !== n) renderAdmin(); } }, 45000);
 
 const sb = {
   /* público (anon) */
@@ -480,7 +563,7 @@ async function lookupByPhone(p){ try { return await sb.clientLookup(p); } catch(
    ========================================================= */
 const $ = s => document.querySelector(s);
 let toastT;
-function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
+function toast(msg, ms){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms || 1800); }
 function openSheet(html){ $('#sheet').innerHTML = html; $('#overlay').classList.add('open'); }
 function closeSheet(){ $('#overlay').classList.remove('open'); $('#sheet').classList.remove('wide'); }
 function show(v){ document.querySelectorAll('.view').forEach(x => x.classList.remove('active')); $('#v-' + v).classList.add('active'); window.scrollTo(0,0); if (v === 'login'){ $('#pass').value=''; $('#login-err').textContent=''; setTimeout(() => ($('#email').value ? $('#pass') : $('#email')).focus(), 50);} }
@@ -526,8 +609,14 @@ function renderClient(){
   const c = client, el = $('#client-content');
   if (c.service === null) c.service = firstSvc();
   if (c.submitted){
-    el.innerHTML = `<h2>Pedido enviado</h2><p class="lead">A tua marcação está pendente de confirmação pela barbearia. Guarda este talão.</p>${ticket(c.submitted)}<button class="ghost" id="new-bk">Fazer nova marcação</button>`;
-    $('#new-bk').onclick = () => { Object.assign(c, {submitted:null, name:'', phone:'', service:firstSvc(), date:null, time:null, period:null, err:null}); renderClient(); };
+    const pushCard = push.available && window.fcm.permission() !== 'denied' ? `<div class="card" id="push-card"><div class="in" style="padding:16px 18px">
+        ${c.pushDone ? `<div style="font-weight:600;color:var(--ok)">✓ Aviso activado</div><div class="lead" style="margin:4px 0 0">Vais receber uma notificação neste dispositivo quando a barbearia confirmar.</div>`
+        : `<div style="font-weight:600">Queres ser avisado quando for confirmada?</div><div class="lead" style="margin:4px 0 10px">Recebes uma notificação neste dispositivo quando a barbearia confirmar ou alterar a hora.</div>
+           <button class="btn" id="push-btn" style="padding:11px;font-size:14px">Avisar-me</button><div class="err" id="push-err">${c.pushErr ? esc(c.pushErr) : ''}</div>`}
+      </div></div>` : '';
+    el.innerHTML = `<h2>Pedido enviado</h2><p class="lead">A tua marcação está pendente de confirmação pela barbearia. Guarda este talão.</p>${ticket(c.submitted)}${pushCard}<button class="ghost" id="new-bk">Fazer nova marcação</button>`;
+    const pb = $('#push-btn'); if (pb) pb.onclick = async () => { pb.disabled = true; pb.textContent = 'A activar…'; const err = await push.registerClient(c.submitted.phone); if (err){ c.pushErr = err; } else { c.pushDone = true; c.pushErr = null; } renderClient(); };
+    $('#new-bk').onclick = () => { Object.assign(c, {submitted:null, name:'', phone:'', service:firstSvc(), date:null, time:null, period:null, err:null, pushDone:false, pushErr:null}); renderClient(); };
     return;
   }
   const s = state.settings, dates = nextWorkingDates(10);
@@ -591,6 +680,7 @@ async function enterAdmin(){
   try { state.settings = await sb.getSettings(); state.bookings = await sb.getBookings(); }
   catch(e){ await auth.signOut(); $('#login-err').textContent = 'Esta conta não tem permissões de administrador.'; show('login'); return; }
   renderAdmin(); show('admin');
+  push.registerAdmin();
 }
 async function tryLogin(){
   const btn = $('#login-btn'); btn.disabled = true; $('#login-err').textContent = '';
@@ -598,7 +688,7 @@ async function tryLogin(){
   catch(e){ $('#login-err').textContent = /invalid/i.test(e.message) ? 'Email ou palavra-passe incorretos.' : e.message; }
   finally { btn.disabled = false; }
 }
-async function logout(){ await auth.signOut(); state.bookings = []; await reload(); show('client'); renderClient(); }
+async function logout(){ await push.unregisterAdmin(); await auth.signOut(); state.bookings = []; await reload(); show('client'); renderClient(); }
 $('#login-btn').onclick = tryLogin;
 $('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 
@@ -876,6 +966,7 @@ function renderSettings(){
   try { applyTheme(localStorage.getItem('theme_id') || 'gold'); } catch(e){}
   $('#client-content').innerHTML = '<div class="loading">a carregar…</div>';
   auth.load();
+  window.addEventListener('fcm-ready', () => { if (auth.loggedIn && Notification.permission === 'granted') push.registerAdmin(); }, { once: true });
   try { state.settings = await sb.getPublicSettings(); state.occupancy = await sb.getOccupancy(); }
   catch(e){ console.error('init', e); }
   state.loading = false;
