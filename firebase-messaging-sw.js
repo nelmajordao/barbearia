@@ -7,7 +7,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-com
 firebase.initializeApp({
   apiKey: "AIzaSyDVzqfJ8HnrGW8tguzZhuLX7ngNes9ieVY",
   authDomain: "barbearia-capitao.firebaseapp.com",
-  projectId: "barbearia-capitao"",
+  projectId: "barbearia-capitao",
   messagingSenderId: "908910252457",
   appId: "1:908910252457:web:64bb8e2c5d3836cc81b4b8",
 });
