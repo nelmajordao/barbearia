@@ -277,6 +277,16 @@ const THEMES = [
   {id:'rust',    name:'Rust',          bg:'#FAF4E8', surface:'#FFF8EC', surface2:'#EEE4D0', border:'#DDD0B8', accent:'#5C2010', accentLight:'#8A3820', text:'#3A1008', text2:'#8A5840', text3:'#B89080', btnFg:'#FAF4E8', light:true},
   {id:'chrome',  name:'Chrome',        bg:'#141414', surface:'#1E1E22', surface2:'#28282E', border:'#2A2A30', accent:'#C8C8D0', accentLight:'#E0E0E8', text:'#F0F0F4', text2:'#606068', text3:'#404048', btnFg:'#0A0A0A', light:false},
   {id:'mercury', name:'Mercury',       bg:'#FFFFFF', surface:'#F8F8F8', surface2:'#F4F4F4', border:'#E8E8E8', accent:'#111111', accentLight:'#444444', text:'#111111', text2:'#888888', text3:'#BBBBBB', btnFg:'#FFFFFF', light:true},
+  {id:'burgundy', name:'Bordeaux', bg:'#160A0C', surface:'#1F0F12', surface2:'#2A1418', border:'#33191E', accent:'#C8463C', accentLight:'#E0665A', text:'#F5E8E6', text2:'#8A5A5E', text3:'#4A2A2E', btnFg:'#160A0C', light:false},
+  {id:'olive', name:'Oliva', bg:'#12140E', surface:'#1A1D14', surface2:'#232719', border:'#2C3120', accent:'#A8B848', accentLight:'#C4D460', text:'#EEF0E4', text2:'#7A8060', text3:'#3E4430', btnFg:'#12140E', light:false},
+  {id:'rose', name:'Rosé', bg:'#1A0F14', surface:'#24151B', surface2:'#2E1B22', border:'#3A222A', accent:'#E48AA8', accentLight:'#F2A6C0', text:'#F8ECF0', text2:'#8E6070', text3:'#4E3040', btnFg:'#1A0F14', light:false},
+  {id:'sky', name:'Céu', bg:'#0B1620', surface:'#101E2C', surface2:'#152838', border:'#1C3446', accent:'#4FB3F0', accentLight:'#7CC8F8', text:'#E6F2FC', text2:'#4F7A96', text3:'#254556', btnFg:'#0B1620', light:false},
+  {id:'sand', name:'Areia', bg:'#EFE6D6', surface:'#F8F2E8', surface2:'#E6DAC4', border:'#D4C4A8', accent:'#8A5A2B', accentLight:'#A8763F', text:'#2E2418', text2:'#7A6650', text3:'#A89478', btnFg:'#F8F2E8', light:true},
+  {id:'mint', name:'Menta', bg:'#EEF6F2', surface:'#FFFFFF', surface2:'#DDEEE6', border:'#C2DED2', accent:'#1E7A5A', accentLight:'#2E9A74', text:'#10302A', text2:'#5A8A7A', text3:'#98BEB0', btnFg:'#FFFFFF', light:true},
+  {id:'lavender', name:'Lavanda', bg:'#F2EFF8', surface:'#FFFFFF', surface2:'#E6E0F4', border:'#D0C6EA', accent:'#5B3FA6', accentLight:'#7A5FC4', text:'#241A40', text2:'#7A6AA0', text3:'#AEA0CC', btnFg:'#FFFFFF', light:true},
+  {id:'paper', name:'Papel & Tinta', bg:'#F7F5F0', surface:'#FFFFFF', surface2:'#ECE8DE', border:'#D6D0C2', accent:'#2B4C7E', accentLight:'#3E63A0', text:'#1C1C1C', text2:'#6E6A60', text3:'#A8A498', btnFg:'#FFFFFF', light:true},
+  {id:'ember', name:'Brasa', bg:'#0F0B0B', surface:'#181010', surface2:'#221616', border:'#2E1C1C', accent:'#E85D26', accentLight:'#F27A48', text:'#F6ECE8', text2:'#8A6058', text3:'#452C28', btnFg:'#0F0B0B', light:false},
+  {id:'moss', name:'Musgo', bg:'#0D1410', surface:'#132018', surface2:'#1A2A20', border:'#22362A', accent:'#7FC48A', accentLight:'#9AD8A4', text:'#E8F2EA', text2:'#5A8A66', text3:'#2E4A36', btnFg:'#0D1410', light:false},
 ];
 const themeById = id => THEMES.find(t => t.id === id) || THEMES[0];
 function applyTheme(id){
