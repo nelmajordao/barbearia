@@ -152,6 +152,28 @@
   @media (min-width:900px){.themes{grid-template-columns:repeat(5,1fr)}
   .sheet.wide{max-width:560px}}
   @media (max-width:380px){.brand{font-size:22px}.palette{width:32px;height:32px;font-size:16px}.logo{width:48px;height:48px}}
+  /* ---- Lista agrupada por dia ---- */
+  .day-group{margin-bottom:10px}
+  .day-head{position:sticky;top:0;z-index:4;width:100%;display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;row-gap:2px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);text-align:left}
+  .day-group.open .day-head{border-radius:10px 10px 0 0}
+  .dh-date{font-family:var(--display);font-size:18px;letter-spacing:.5px;flex-shrink:0}
+  .dh-meta{grid-column:1/-1;font-size:12px;color:var(--muted)}
+  .dh-meta b{color:var(--danger);font-weight:600}
+  .dh-arrow{color:var(--muted2);font-size:12px;grid-row:1}
+  .rows{border:1px solid var(--border);border-top:0;border-radius:0 0 10px 10px;background:var(--surface);overflow:hidden}
+  .brow{border-top:1px solid var(--border)}
+  .brow:first-child{border-top:0}
+  .brow-main{width:100%;display:flex;align-items:center;gap:10px;padding:12px 12px 12px 10px;border-left:3px solid var(--border);text-align:left;color:var(--text)}
+  .brow.pending .brow-main{border-left-color:var(--pending)}
+  .brow.confirmed .brow-main{border-left-color:var(--confirmed)}
+  .brow.exp .brow-main{background:var(--accent-dim)}
+  .br-time{font-family:var(--mono);font-size:13px;flex-shrink:0}
+  .br-name{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .br-svc{font-size:12px;color:var(--muted);flex-shrink:0;max-width:40%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .br-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--pending)}
+  .brow.confirmed .br-dot{background:var(--confirmed)}
+  .brow-more{padding:10px 12px 14px 13px;background:var(--surface2)}
+  @media (min-width:900px){#admin-body:not(.agenda-mode){display:block}.day-head{top:0}}
   /* ---- Responsivo ---- */
   .cols{display:flex;flex-direction:column}
   .col-side{margin-top:34px}
@@ -168,8 +190,6 @@
     .grid3{grid-template-columns:repeat(5,1fr)}
     .days{flex-wrap:wrap;overflow:visible}
     .day{flex:0 0 64px}
-    #admin-body:not(.agenda-mode){display:grid;grid-template-columns:repeat(2,1fr);gap:0 20px;align-items:start}
-    #admin-body .empty{grid-column:1/-1}
     .block{left:64px}
     .hline span{width:50px}
     .lunch,.now{left:56px}
@@ -575,53 +595,85 @@ $('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin();
 /* =========================================================
    ADMIN
    ========================================================= */
-const admin = { tab: 'pendentes', agendaDate: todayISO(), editing: null };
+const admin = { tab: 'pendentes', agendaDate: todayISO(), expanded: null, openDays: new Set(), closedDays: new Set() };
 const TABS = { pendentes:'Pendentes', confirmadas:'Confirmadas', todas:'Todas', agenda:'Agenda' };
 
 function renderAdmin(){
   $('#tabs').innerHTML = Object.entries(TABS).map(([k,v]) => `<button class="tab ${admin.tab === k ? 'on' : ''}" data-tab="${k}">${v}</button>`).join('');
-  $('#tabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.tab; admin.editing = null; renderAdmin(); });
+  $('#tabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { admin.tab = b.dataset.tab; admin.expanded = null; renderAdmin(); });
   const body = $('#admin-body');
   body.classList.toggle('agenda-mode', admin.tab === 'agenda');
   if (admin.tab === 'agenda') return renderAgenda(body);
   const all = state.bookings.filter(b => b.status !== 'deleted').sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
   const list = admin.tab === 'pendentes' ? all.filter(b => b.status === 'pending') : admin.tab === 'confirmadas' ? all.filter(b => b.status === 'confirmed') : all;
   if (!list.length){ body.innerHTML = '<div class="empty">Sem marcações aqui.</div>'; return; }
-  body.innerHTML = list.map(b => admin.editing === b.id ? editCard(b) : adminCard(b)).join('');
-  bindAdminCards(body);
+  // agrupar por dia
+  const groups = []; for (const bk of list){ const g = groups[groups.length-1]; if (g && g.date === bk.date) g.items.push(bk); else groups.push({ date: bk.date, items: [bk] }); }
+  const today = todayISO(), tomorrow = shiftISO(today, 1);
+  body.innerHTML = groups.map(g => {
+    const open = admin.openDays.has(g.date) || (!admin.closedDays.has(g.date) && (g.date === today || g.date === tomorrow));
+    const pend = g.items.filter(x => x.status === 'pending').length;
+    const d = parseISO(g.date);
+    return `<section class="day-group ${open ? 'open' : ''}" data-day="${g.date}">
+      <button class="day-head" data-toggle="${g.date}">
+        <span class="dh-date">${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)}${g.date === today ? ' · hoje' : g.date === tomorrow ? ' · amanhã' : ''}</span>
+        <span class="dh-meta">${g.items.length} marcaç${g.items.length === 1 ? 'ão' : 'ões'}${pend ? ` · <b>${pend} pendente${pend > 1 ? 's' : ''}</b>` : ''}</span>
+        <span class="dh-arrow">${open ? '▾' : '▸'}</span>
+      </button>
+      ${open ? `<div class="rows">${g.items.map(compactRow).join('')}</div>` : ''}
+    </section>`;
+  }).join('');
+  body.querySelectorAll('[data-toggle]').forEach(h => h.onclick = () => {
+    const day = h.dataset.toggle, wasOpen = h.closest('.day-group').classList.contains('open');
+    if (wasOpen){ admin.openDays.delete(day); admin.closedDays.add(day); } else { admin.closedDays.delete(day); admin.openDays.add(day); }
+    renderAdmin();
+  });
+  bindRows(body);
 }
 
-function adminCard(b){
-  return `<div class="card" data-id="${b.id}"><div class="in"><div class="code">${esc(b.code)}</div><div class="name">${esc(b.name)}</div><div class="phone">${esc(b.phone)}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}
-    <div class="row" style="margin-top:14px">${b.status === 'pending' ? `<button class="sm accent" data-act="confirm">Confirmar</button>` : ''}<button class="sm" data-act="edit">Editar</button><button class="sm danger" data-act="delete">Eliminar</button></div></div></div>`;
+function compactRow(b){
+  const exp = admin.expanded === b.id;
+  return `<div class="brow ${b.status} ${exp ? 'exp' : ''}" data-id="${b.id}">
+    <button class="brow-main" data-expand="${b.id}">
+      <span class="br-time">${b.time}</span>
+      <span class="br-name">${esc(b.name)}</span>
+      <span class="br-svc">${esc(svcLabel(b.service))}</span>
+      <span class="br-dot" title="${b.status === 'confirmed' ? 'Confirmada' : 'Pendente'}"></span>
+    </button>
+    ${exp ? `<div class="brow-more"><div class="phone" style="margin-bottom:8px">${esc(b.phone)} · <span class="code">${esc(b.code)}</span></div>
+      <div class="row">${b.status === 'pending' ? `<button class="sm accent" data-act="confirm">Confirmar</button>` : ''}<button class="sm" data-act="edit">Editar</button><button class="sm danger" data-act="delete">Eliminar</button></div></div>` : ''}
+  </div>`;
 }
-function editCard(b){
-  return `<div class="card" data-id="${b.id}"><div class="in">
-    <div class="name" style="font-size:18px;margin-top:0">A editar: ${esc(b.name)}</div>
-    <span class="label">Serviço</span><div class="wrap">${state.settings.services.map(sv => `<button class="pill ${b.service === sv.key ? 'on' : ''}" style="padding:10px 14px" data-esvc="${esc(sv.key)}">${esc(sv.label)}</button>`).join('')}</div>
-    <label class="label">Dia</label><input class="input mono" type="date" data-edate value="${b.date}">
-    <label class="label">Hora (livre)</label><input class="input mono" type="time" step="300" data-etime value="${b.time}">
-    <span class="label">Estado</span><div class="row"><button class="pill ${b.status === 'pending' ? 'on' : ''}" data-estatus="pending">Pendente</button><button class="pill ${b.status === 'confirmed' ? 'on' : ''}" data-estatus="confirmed">Confirmada</button></div>
-    <div class="row" style="margin-top:14px"><button class="sm accent" data-act="save">Guardar</button><button class="sm" data-act="cancel">Cancelar</button></div></div></div>`;
-}
-const editDraft = {};
-function bindAdminCards(root){
-  root.querySelectorAll('.card').forEach(card => {
-    const id = card.dataset.id, b = state.bookings.find(x => x.id === id);
-    card.querySelectorAll('[data-act]').forEach(btn => btn.onclick = async () => {
+function bindRows(root){
+  root.querySelectorAll('[data-expand]').forEach(btn => btn.onclick = () => { admin.expanded = admin.expanded === btn.dataset.expand ? null : btn.dataset.expand; renderAdmin(); });
+  root.querySelectorAll('.brow').forEach(row => {
+    const id = row.dataset.id, b = state.bookings.find(x => x.id === id);
+    row.querySelectorAll('[data-act]').forEach(btn => btn.onclick = async () => {
       const act = btn.dataset.act;
       if (act === 'confirm'){ await confirmBooking(id); toast('Confirmada'); renderAdmin(); }
-      else if (act === 'edit'){ admin.editing = id; editDraft[id] = { service: b.service, date: b.date, time: b.time, status: b.status }; renderAdmin(); }
-      else if (act === 'cancel'){ admin.editing = null; renderAdmin(); }
-      else if (act === 'save'){
-        const d = editDraft[id]; d.date = card.querySelector('[data-edate]').value || d.date; d.time = card.querySelector('[data-etime]').value || d.time;
-        Object.assign(b, d); await updateBooking(b); admin.editing = null; toast('Atualizada'); renderAdmin();
-      }
+      else if (act === 'edit'){ openEdit(b); }
       else if (act === 'delete'){ if (await confirmDialog('Eliminar esta marcação?')){ await deleteBooking(id); toast('Eliminada'); renderAdmin(); } }
     });
-    card.querySelectorAll('[data-esvc]').forEach(p => p.onclick = () => { editDraft[id].service = p.dataset.esvc; card.querySelectorAll('[data-esvc]').forEach(x => x.classList.toggle('on', x === p)); });
-    card.querySelectorAll('[data-estatus]').forEach(p => p.onclick = () => { editDraft[id].status = p.dataset.estatus; card.querySelectorAll('[data-estatus]').forEach(x => x.classList.toggle('on', x === p)); });
   });
+}
+
+/* Folha de edição (usada na lista e no detalhe da agenda) */
+function openEdit(b){
+  const d = { service: b.service, date: b.date, time: b.time, status: b.status };
+  openSheet(`<h2 class="small">A editar: ${esc(b.name)}</h2><div class="phone">${esc(b.phone)}</div>
+    <span class="label">Serviço</span><div class="wrap" id="e-svc">${state.settings.services.map(sv => `<button class="pill ${d.service === sv.key ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}</button>`).join('')}</div>
+    <label class="label" for="e-date">Dia</label><input class="input mono" type="date" id="e-date" value="${d.date}">
+    <label class="label" for="e-time">Hora (livre)</label><input class="input mono" type="time" step="300" id="e-time" value="${d.time}">
+    <span class="label">Estado</span><div class="row" id="e-status"><button class="pill ${d.status === 'pending' ? 'on' : ''}" data-s="pending">Pendente</button><button class="pill ${d.status === 'confirmed' ? 'on' : ''}" data-s="confirmed">Confirmada</button></div>
+    <div style="margin-top:16px"><button class="btn" id="e-save">Guardar</button></div>
+    <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Cancelar</button>`);
+  $('#e-svc').querySelectorAll('[data-k]').forEach(p => p.onclick = () => { d.service = p.dataset.k; $('#e-svc').querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === p)); });
+  $('#e-status').querySelectorAll('[data-s]').forEach(p => p.onclick = () => { d.status = p.dataset.s; $('#e-status').querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === p)); });
+  $('#e-save').onclick = async () => {
+    d.date = $('#e-date').value || d.date; d.time = $('#e-time').value || d.time;
+    Object.assign(b, d); $('#e-save').disabled = true;
+    try { await updateBooking(b); closeSheet(); toast('Atualizada'); renderAdmin(); } catch(e){ $('#e-save').disabled = false; toast('Erro ao guardar'); }
+  };
 }
 
 /* ---- Agenda ---- */
@@ -708,9 +760,10 @@ function bindDrag(el, startMin, endMin){
 
 function openDetail(b){
   openSheet(`<div class="code">${esc(b.code)}</div><div class="name" style="font-size:24px">${esc(b.name)}</div><div class="phone">${esc(b.phone)}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}
-    <div class="row" style="margin-top:16px">${b.status === 'pending' ? '<button class="ghost" id="d-confirm" style="border-color:rgba(201,161,74,.4);color:var(--accent)">Confirmar</button>' : ''}<button class="ghost danger" id="d-delete">Eliminar</button></div>
+    <div class="row" style="margin-top:16px">${b.status === 'pending' ? '<button class="ghost" id="d-confirm" style="border-color:rgba(201,161,74,.4);color:var(--accent)">Confirmar</button>' : ''}<button class="ghost" id="d-edit">Editar</button><button class="ghost danger" id="d-delete">Eliminar</button></div>
     <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Fechar</button>`);
   const c = $('#d-confirm'); if (c) c.onclick = async () => { await confirmBooking(b.id); closeSheet(); toast('Confirmada'); renderAdmin(); };
+  $('#d-edit').onclick = () => { closeSheet(); openEdit(b); };
   $('#d-delete').onclick = async () => { await deleteBooking(b.id); closeSheet(); toast('Eliminada'); renderAdmin(); };
 }
 
