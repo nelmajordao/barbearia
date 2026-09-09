@@ -256,13 +256,13 @@
 // >>> Substitui pelos valores da app Web no Firebase (Project settings → General → Your apps → Web)
 //     e a chave VAPID em Cloud Messaging → Web Push certificates → "Key pair".
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDVzqfJ8HnrGW8tguzZhuLX7ngNes9ieVY",
-  authDomain: "barbearia-capitao.firebaseapp.com",
-  projectId: "barbearia-capitao",
-  messagingSenderId: "908910252457",
-  appId: "1:908910252457:web:64bb8e2c5d3836cc81b4b8",
+  apiKey: "FIREBASE_API_KEY",
+  authDomain: "FIREBASE_PROJECT_ID.firebaseapp.com",
+  projectId: "FIREBASE_PROJECT_ID",
+  messagingSenderId: "FIREBASE_SENDER_ID",
+  appId: "FIREBASE_APP_ID",
 };
-const VAPID_KEY = "BELjMUcHKTzJr16EU2UX33dxOXnl8k3NlFR0TKjLt6AHBQPET5WdNRquXsbjgxXdWEDCBCbp3WkNGOFKVANtGDY";
+const VAPID_KEY = "FIREBASE_VAPID_KEY";
 
 window.fcm = { ready: false, supported: false };
 try {
@@ -740,7 +740,7 @@ function compactRow(b){
       <span class="br-svc">${esc(svcLabel(b.service))}</span>
       <span class="br-dot" title="${b.status === 'confirmed' ? 'Confirmada' : 'Pendente'}"></span>
     </button>
-    ${exp ? `<div class="brow-more"><div class="phone" style="margin-bottom:8px">${esc(b.phone)} · <span class="code">${esc(b.code)}</span></div>
+    ${exp ? `<div class="brow-more"><div class="phone" style="margin-bottom:8px">${esc(b.phone) || 'sem telemóvel'} · <span class="code">${esc(b.code)}</span></div>
       <div class="row">${b.status === 'pending' ? `<button class="sm accent" data-act="confirm">Confirmar</button>` : ''}<button class="sm" data-act="edit">Editar</button><button class="sm danger" data-act="delete">Eliminar</button></div></div>` : ''}
   </div>`;
 }
@@ -760,7 +760,7 @@ function bindRows(root){
 /* Folha de edição (usada na lista e no detalhe da agenda) */
 function openEdit(b){
   const d = { service: b.service, date: b.date, time: b.time, status: b.status };
-  openSheet(`<h2 class="small">A editar: ${esc(b.name)}</h2><div class="phone">${esc(b.phone)}</div>
+  openSheet(`<h2 class="small">A editar: ${esc(b.name)}</h2><div class="phone">${esc(b.phone) || 'sem telemóvel'}</div>
     <span class="label">Serviço</span><div class="wrap" id="e-svc">${state.settings.services.map(sv => `<button class="pill ${d.service === sv.key ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}</button>`).join('')}</div>
     <label class="label" for="e-date">Dia</label><input class="input mono" type="date" id="e-date" value="${d.date}">
     <label class="label" for="e-time">Hora (livre)</label><input class="input mono" type="time" step="300" id="e-time" value="${d.time}">
@@ -859,7 +859,7 @@ function bindDrag(el, startMin, endMin){
 }
 
 function openDetail(b){
-  openSheet(`<div class="code">${esc(b.code)}</div><div class="name" style="font-size:24px">${esc(b.name)}</div><div class="phone">${esc(b.phone)}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}
+  openSheet(`<div class="code">${esc(b.code)}</div><div class="name" style="font-size:24px">${esc(b.name)}</div><div class="phone">${esc(b.phone) || "sem telemóvel"}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}
     <div class="row" style="margin-top:16px">${b.status === 'pending' ? '<button class="ghost" id="d-confirm" style="border-color:rgba(201,161,74,.4);color:var(--accent)">Confirmar</button>' : ''}<button class="ghost" id="d-edit">Editar</button><button class="ghost danger" id="d-delete">Eliminar</button></div>
     <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Fechar</button>`);
   const c = $('#d-confirm'); if (c) c.onclick = async () => { await confirmBooking(b.id); closeSheet(); toast('Confirmada'); renderAdmin(); };
@@ -873,7 +873,7 @@ function openNewBooking(date, initialTime){
     <span class="label">Serviço</span><div class="wrap" id="n-svc">${s.services.map(sv => `<button class="pill ${sv.key === svc ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}<small>${sv.duration} min</small></button>`).join('')}</div>
     <label class="label" for="n-time">Hora (livre — sobreposição permitida)</label><input class="input mono" type="time" step="300" id="n-time" value="${initialTime || s.startTime}">
     <label class="label" for="n-name">Nome</label><input class="input" id="n-name" placeholder="Nome do cliente">
-    <label class="label" for="n-phone">Telemóvel</label><input class="input" id="n-phone" type="tel" placeholder="9xx xxx xxx">
+    <label class="label" for="n-phone">Telemóvel <span style="color:var(--muted2);font-weight:400;letter-spacing:0">(opcional)</span></label><input class="input" id="n-phone" type="tel" placeholder="9xx xxx xxx">
     <span class="label">Estado</span><div class="row" id="n-status"><button class="pill" data-s="pending">Pendente</button><button class="pill on" data-s="confirmed">Confirmada</button></div>
     <div class="err" id="n-err"></div>
     <div style="margin-top:16px"><button class="btn" id="n-create">Criar marcação</button></div>
@@ -882,7 +882,7 @@ function openNewBooking(date, initialTime){
   $('#n-status').querySelectorAll('[data-s]').forEach(p => p.onclick = () => { status = p.dataset.s; $('#n-status').querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === p)); });
   $('#n-create').onclick = async () => {
     const name = $('#n-name').value.trim(), phone = $('#n-phone').value.trim(), time = $('#n-time').value;
-    if (!name || !phone){ $('#n-err').textContent = 'Preenche o nome e o telemóvel.'; return; }
+    if (!name){ $('#n-err').textContent = 'Preenche o nome.'; return; }
     if (!time){ $('#n-err').textContent = 'Indica a hora.'; return; }
     $('#n-create').disabled = true;
     const ok = await createAdminBooking({ name, phone, service: svc, date, time, status });
