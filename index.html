@@ -110,6 +110,8 @@
   /* Agenda */
   .agenda-head{display:flex;align-items:center;gap:8px}
   .agenda-wrap{max-width:640px;margin:0 auto}
+  .closed-banner{margin:0 0 14px;padding:14px 16px;border-radius:12px;background:#8B2E2E;color:#fff;text-align:center;font-family:var(--display);font-size:22px;letter-spacing:2px;box-shadow:0 4px 18px rgba(139,46,46,.45)}
+  .closed-banner small{display:block;font-family:var(--sans);font-size:12px;letter-spacing:0;font-weight:500;opacity:.9;margin-top:2px}
   .agenda-head h3{flex:1;text-align:center;font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:.5px}
   .agenda-count{text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted2);margin:10px 0 16px}
   .hint{font-size:11px;color:var(--muted2);line-height:1.4;margin:8px 0 14px}
@@ -871,20 +873,21 @@ async function renderClients(body){
     </div></div>
     <input class="input" id="nc-q" placeholder="Procurar por nome ou número" value="${esc(ac.q)}" style="margin-bottom:10px">
     <div class="rows" style="border-top:1px solid var(--border);border-radius:10px">
-      ${list.length ? list.map(c => `<div class="brow ${c.active ? 'confirmed' : ''}" data-phone="${esc(c.phone)}">
+      ${list.length ? list.map(c => { const blocked = state.settings.blacklist.includes(c.phone); return `<div class="brow ${!c.active ? '' : blocked ? 'pending' : 'confirmed'}" data-phone="${esc(c.phone)}">
         <div class="brow-main" style="cursor:default">
           <span class="br-name" style="${c.active ? '' : 'text-decoration:line-through;opacity:.6'}">${esc(c.name)}</span>
           <span class="br-svc" style="font-family:var(--mono)">${esc(c.phone)}</span>
-          <span class="badge ${c.active ? 'confirmed' : 'pending'}" style="margin:0;font-size:10px">${c.active ? 'ACTIVO' : 'INACTIVO'}</span>
+          <span class="badge ${c.active && !blocked ? 'confirmed' : 'pending'}" style="margin:0;font-size:10px">${!c.active ? 'INACTIVO' : blocked ? 'BLOQUEADO' : 'ACTIVO'}</span>
         </div>
         <div class="brow-more" style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="sm" data-act="rename">Renomear</button>
+          <button class="sm ${blocked ? '' : 'danger'}" data-act="block">${blocked ? 'Desbloquear' : 'Bloquear marcações'}</button>
           <button class="sm" data-act="toggle">${c.active ? 'Desactivar' : 'Reactivar'}</button>
           <button class="sm danger" data-act="delete">Eliminar</button>
         </div>
-      </div>`).join('') : '<div class="empty">Sem clientes.</div>'}
+      </div>`; }).join('') : '<div class="empty">Sem clientes.</div>'}
     </div>
-    <p class="hint" style="margin-top:12px">Clientes desactivados não conseguem entrar; as marcações existentes mantêm-se.</p>`;
+    <p class="hint" style="margin-top:12px"><b>Bloquear marcações</b>: o cliente entra mas não consegue pedir marcações (lista negra). <b>Desactivar</b>: não consegue sequer entrar. As marcações existentes mantêm-se em ambos os casos.</p>`;
 
   $('#nc-q').oninput = e => { ac.q = e.target.value; renderClients(body); const i = $('#nc-q'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
   $('#nc-add').onclick = async () => {
@@ -901,6 +904,7 @@ async function renderClients(body){
       try {
         if (act === 'rename'){ const n = prompt('Nome do cliente:', c.name); if (n && n.trim() && n.trim() !== c.name){ await sb.updateClient(phone, { name: n.trim() }); ac.list = null; toast('Atualizado'); } }
         else if (act === 'toggle'){ await sb.updateClient(phone, { active: !c.active }); ac.list = null; toast(c.active ? 'Cliente desactivado' : 'Cliente reactivado'); }
+        else if (act === 'block'){ const bl = state.settings.blacklist; state.settings.blacklist = bl.includes(phone) ? bl.filter(x => x !== phone) : [...bl, phone]; await saveSettings(); toast(bl.includes(phone) ? 'Marcações desbloqueadas' : 'Marcações bloqueadas'); }
         else if (act === 'delete'){ if (await confirmDialog(`Eliminar ${c.name}?`, 'As marcações existentes mantêm-se; o cliente deixa de poder entrar.', 'Sim, eliminar')){ await sb.deleteClient(phone); ac.list = null; toast('Eliminado'); } }
       } catch(e){ toast('Erro: ' + (e.message || '')); }
       renderClients(body);
@@ -941,7 +945,7 @@ function renderAgenda(body){
   body.innerHTML = `<div class="agenda-wrap">
     <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3>${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''}</h3><button class="sm" id="ag-next">▶</button></div>
     <div class="agenda-count">${dayB.length} marcaç${dayB.length === 1 ? 'ão' : 'ões'}${pend ? ` · ${pend} pendente${pend > 1 ? 's' : ''}` : ''}</div>
-    ${isClosedDay(date) ? `<div class="card" style="margin-bottom:12px"><div class="in" style="padding:10px 14px;text-align:center;color:var(--danger);font-weight:600;letter-spacing:.5px">FECHADO · feriado / encerramento</div></div>` : ''}
+    ${isClosedDay(date) ? `<div class="closed-banner">🔒 FECHADO<small>feriado / encerramento — só o administrador pode marcar</small></div>` : ''}
     <button class="ghost" id="ag-new" style="border-color:rgba(201,161,74,.4);color:var(--accent);font-size:13px">+ Nova marcação neste dia</button>
     <p class="hint">${dayB.length ? 'Clica numa marcação para ver/editar · arrasta para mudar a hora · ' : 'Sem marcações neste dia · '}duplo clique num espaço vazio para marcar nessa hora.</p>
     ${grid}
@@ -1031,7 +1035,7 @@ let draft = null;
 function openSettings(){
   const s = state.settings;
   draft = { workingDays:[...s.workingDays], startTime:s.startTime, endTime:s.endTime, lunchEnabled:s.lunchEnabled, lunchStart:s.lunchStart, lunchEnd:s.lunchEnd,
-    services: s.services.map(x => ({...x})), blacklist:[...s.blacklist], closedDays:[...s.closedDays], pass:'', blInput:'' };
+    services: s.services.map(x => ({...x})), closedDays:[...s.closedDays], pass:'' };
   renderSettings(); show('settings');
 }
 function renderSettings(){
@@ -1059,10 +1063,6 @@ function renderSettings(){
     <input class="input" id="s-pass" type="password" placeholder="Deixa em branco para manter (mín. 6 caracteres)" value="${esc(d.pass)}" autocomplete="new-password">
     <div style="margin-top:24px"><button class="btn" id="s-save">Guardar definições</button></div>
     <div style="height:30px"></div>
-    <span class="label">Lista negra de números</span>
-    <p class="lead" style="margin-top:0">Estes números não conseguem pedir novas marcações.</p>
-    <div class="row"><input class="input" id="s-bl" type="tel" placeholder="9xx xxx xxx" value="${esc(d.blInput)}"><button class="sm danger" id="s-bl-add" style="flex:0 0 auto;padding:12px 14px">Adicionar</button></div>
-    <div style="margin-top:12px">${d.blacklist.length ? d.blacklist.map(p => `<div class="bl"><span>${esc(p)}</span><button class="sm" data-blr="${esc(p)}">Remover</button></div>`).join('') : '<div class="empty">Nenhum número bloqueado.</div>'}</div>
     <div style="height:20px"></div>`;
 
   const sync = () => {
@@ -1070,7 +1070,7 @@ function renderSettings(){
     if (d.lunchEnabled){ d.lunchStart = $('#s-ls').value || d.lunchStart; d.lunchEnd = $('#s-le').value || d.lunchEnd; }
     el.querySelectorAll('[data-sl]').forEach(i => d.services[+i.dataset.sl].label = i.value);
     el.querySelectorAll('[data-sd]').forEach(i => d.services[+i.dataset.sd].duration = parseInt(i.value) || 0);
-    d.pass = $('#s-pass').value; d.blInput = $('#s-bl').value;
+    d.pass = $('#s-pass').value;
   };
   el.querySelectorAll('[data-dow]').forEach(b => b.onclick = () => { sync(); const n = +b.dataset.dow; d.workingDays.includes(n) ? d.workingDays = d.workingDays.filter(x => x !== n) : d.workingDays.push(n); renderSettings(); });
   $('#s-lunch').onclick = () => { sync(); d.lunchEnabled = !d.lunchEnabled; renderSettings(); };
@@ -1090,15 +1090,6 @@ function renderSettings(){
       await saveSettings(); toast('Definições guardadas'); show('admin'); renderAdmin();
     } catch(e){ toast(e.message || 'Erro ao guardar'); console.error(e); }
   };
-  $('#s-bl-add').onclick = async () => {
-    sync(); const np = normPhone(d.blInput); if (!np) return;
-    if (!d.blacklist.includes(np)) d.blacklist.push(np);
-    state.settings.blacklist = [...d.blacklist]; await saveSettings(); d.blInput = ''; toast('Número bloqueado'); renderSettings();
-  };
-  el.querySelectorAll('[data-blr]').forEach(b => b.onclick = async () => {
-    sync(); d.blacklist = d.blacklist.filter(p => p !== b.dataset.blr);
-    state.settings.blacklist = [...d.blacklist]; await saveSettings(); toast('Número desbloqueado'); renderSettings();
-  });
 }
 
 /* =========================================================
