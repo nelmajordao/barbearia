@@ -264,7 +264,7 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "908910252457",
   appId: "1:908910252457:web:64bb8e2c5d3836cc81b4b8",
 };
-const VAPID_KEY = "BELjMUcHKTzJr16EU2UX33dxOXnl8k3NlFR0TKjLt6AHBQPET5WdNRquXsbjgxXdWEDCBCbp3WkNGOFKVANtGDY";
+const VAPID_KEY = "BELjMUcHKTzJr16EU2UX33dxOXnl8k3NlFR0TKjLt6AHBQPET5WdNRquXsbjgxXdWEDCBCbp3WkNGOFKVANtGDY";a
 
 window.fcm = { ready: false, supported: false };
 try {
@@ -287,6 +287,7 @@ try {
         deleteToken: () => deleteToken(messaging).catch(() => {}),
       };
       // página aberta: mostrar aviso e avisar a app
+      onMessage(messaging, (m) => window.dispatchEvent(new CustomEvent('fcm-message', { detail: m })));
     }
   }
 } catch (e) { console.warn('FCM indisponível', e); }
@@ -440,8 +441,7 @@ const sb = {
   async getOccupancy(){ return (await rpc('public_occupancy')) || []; },
   /* cliente (conta) */
   clientStatus: phone => rpc('client_status', { p_phone: phone }),
-  clientSetPassword: (phone, pw) => rpc('client_set_password', { p_phone: phone, p_password: pw }),
-  clientLogin: (phone, pw) => rpc('client_login', { p_phone: phone, p_password: pw }),
+  clientEnter: phone => rpc('client_enter', { p_phone: phone }),
   clientLogout: token => rpc('client_logout', { p_token: token }),
   clientMe: token => rpc('client_me', { p_token: token }),
   clientMyBookings: async token => (await rpc('client_my_bookings', { p_token: token })) || [],
@@ -449,11 +449,10 @@ const sb = {
   clientCancel: (token, id) => rpc('client_cancel_booking', { p_token: token, p_id: id }),
   clientRegisterPush: (token, fcm) => rpc('client_register_push', { p_token: token, p_fcm_token: fcm }),
   /* admin: clientes */
-  async getClients(){ const r = await fetch(`${REST}/clients?select=phone,name,active,created_at,last_login,password_hash&order=name.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('getClients ' + r.status); return (await r.json()).map(c => ({ ...c, hasPassword: !!c.password_hash, password_hash: undefined })); },
+  async getClients(){ const r = await fetch(`${REST}/clients?select=phone,name,active,created_at,last_login&order=name.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('getClients ' + r.status); return r.json(); },
   async upsertClient(c){ const r = await fetch(`${REST}/clients?on_conflict=phone`, { method:'POST', headers:{...await hdrs(), Prefer:'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify(c) }); if (!r.ok) throw new Error('upsertClient ' + r.status); },
   async updateClient(phone, patch){ const r = await fetch(`${REST}/clients?phone=eq.${encodeURIComponent(phone)}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(patch) }); if (!r.ok) throw new Error('updateClient ' + r.status); },
   async deleteClient(phone){ const r = await fetch(`${REST}/clients?phone=eq.${encodeURIComponent(phone)}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('deleteClient ' + r.status); },
-  resetClientPassword: phone => rpc('admin_reset_client_password', { p_phone: phone }),
   /* admin (sessão) */
   async getBookings(){
     const r = await fetch(`${REST}/bookings?select=*&order=date.asc,time.asc`, { headers: await hdrs() });
@@ -617,7 +616,7 @@ const cs = {
 
 const client = { service:null, date:null, time:null, period:null, err:null, submitted:null, mine:null, pushDone:false, pushErr:null,
   // ecrã de entrada
-  gate: { phone:'', step:'phone', pw:'', pw2:'', err:null, busy:false } };
+  gate: { phone:'', err:null, busy:false } };
 
 function nextWorkingDates(count){
   const out = []; let d = new Date(); d.setHours(0,0,0,0); let guard = 0;
@@ -635,53 +634,30 @@ async function loadMine(){ try { client.mine = await sb.clientMyBookings(cs.toke
 /* ---- Ecrã de entrada do cliente ---- */
 function renderGate(){
   const g = client.gate, el = $('#client-content');
-  const pwFields = g.step === 'set' ? `
-      <p class="lead" style="margin-top:14px">Bem-vindo! É a tua primeira entrada. Cria uma password para usares nas próximas marcações.</p>
-      <label class="label" for="g-pw">Nova password</label><input class="input" id="g-pw" type="password" placeholder="mínimo 6 caracteres" autocomplete="new-password">
-      <label class="label" for="g-pw2">Repetir password</label><input class="input" id="g-pw2" type="password" autocomplete="new-password">`
-    : g.step === 'login' ? `
-      <label class="label" for="g-pw">Password</label><input class="input" id="g-pw" type="password" placeholder="••••••••" autocomplete="current-password">
-      <p class="lead" style="margin-top:8px">Esqueceste-te? Pede à barbearia para repor a tua password.</p>` : '';
   el.innerHTML = `<div class="cols"><div class="col" style="max-width:480px;margin:0 auto">
     <h2>Entrar</h2>
     <p class="lead">Só clientes registados pela barbearia podem marcar. Introduz o teu número de telemóvel.</p>
     <label class="label" for="g-phone">Telemóvel</label>
-    <input class="input" id="g-phone" type="tel" placeholder="9xx xxx xxx" value="${esc(g.phone)}" autocomplete="tel" ${g.step !== 'phone' ? 'readonly style="opacity:.7"' : ''}>
-    ${pwFields}
+    <input class="input" id="g-phone" type="tel" placeholder="9xx xxx xxx" value="${esc(g.phone)}" autocomplete="tel">
     <div class="err">${g.err ? esc(g.err) : ''}</div>
-    <div style="margin-top:18px"><button class="btn" id="g-go" ${g.busy ? 'disabled' : ''}>${g.step === 'phone' ? 'Continuar' : g.step === 'set' ? 'Criar password e entrar' : 'Entrar'}</button></div>
-    ${g.step !== 'phone' ? `<div style="margin-top:10px"><button class="ghost" id="g-back">Outro número</button></div>` : ''}
+    <div style="margin-top:18px"><button class="btn" id="g-go" ${g.busy ? 'disabled' : ''}>${g.busy ? 'A entrar…' : 'Entrar'}</button></div>
     </div></div>`;
   const go = async () => {
-    // ler os campos ANTES de re-desenhar
-    const phoneVal = ($('#g-phone') || {}).value || '', pw = ($('#g-pw') || {}).value || '', pw2 = ($('#g-pw2') || {}).value || '';
-    g.err = null; g.busy = true; if (g.step === 'phone') g.phone = phoneVal.trim(); renderGate();
-    try {
-      if (g.step === 'phone'){
-        if (!g.phone){ g.err = 'Introduz o teu número.'; return; }
-        const st = await sb.clientStatus(g.phone);
-        if (st === 'nao_registado') g.err = 'Este número não está registado. Pede à barbearia para te adicionar como cliente.';
-        else if (st === 'inactivo') g.err = 'Esta conta está inactiva. Contacta a barbearia.';
-        else g.step = st === 'sem_password' ? 'set' : 'login';
-      } else if (g.step === 'set'){
-        if (pw.length < 6){ g.err = 'A password deve ter pelo menos 6 caracteres.'; return; }
-        if (pw !== pw2){ g.err = 'As passwords não coincidem.'; return; }
-        cs.set(await sb.clientSetPassword(g.phone, pw)); await enterClient();
-      } else {
-        cs.set(await sb.clientLogin(g.phone, pw)); await enterClient();
-      }
-    } catch(e){ g.err = e.message.replace(/^client_\w+ \d+$/, 'Erro de ligação. Tenta novamente.'); }
+    g.phone = $('#g-phone').value.trim(); g.err = null;
+    if (!g.phone){ g.err = 'Introduz o teu número.'; return renderGate(); }
+    g.busy = true; renderGate();
+    try { cs.set(await sb.clientEnter(g.phone)); await enterClient(); }
+    catch(e){ g.err = e.message.replace(/^client_\w+ \d+$/, 'Erro de ligação. Tenta novamente.'); }
     finally { g.busy = false; if (!cs.loggedIn) renderGate(); }
   };
   $('#g-go').onclick = go;
-  el.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }));
-  const back = $('#g-back'); if (back) back.onclick = () => { Object.assign(g, { step:'phone', err:null }); renderGate(); setTimeout(() => $('#g-phone').focus(), 30); };
-  setTimeout(() => { const f = $('#g-pw') || $('#g-phone'); if (f && !f.readOnly) f.focus(); }, 30);
+  $('#g-phone').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  setTimeout(() => $('#g-phone').focus(), 30);
 }
 
 async function enterClient(){
   Object.assign(client, { service: firstSvc(), date:null, time:null, period:null, err:null, submitted:null, mine:null, pushDone:false, pushErr:null });
-  Object.assign(client.gate, { step:'phone', pw:'', pw2:'', err:null });
+  client.gate.err = null;
   await Promise.all([reload(), loadMine()]);
   renderClient();
   if (push.available && window.fcm.permission() === 'granted') push.registerClient(); // renovar token silenciosamente
@@ -879,28 +855,27 @@ async function renderClients(body){
   body.innerHTML = `
     <div class="card"><div class="in" style="padding:16px 18px">
       <div style="font-weight:600;margin-bottom:6px">Novo cliente</div>
-      <p class="lead" style="margin-top:0">Depois de o adicionares, o cliente entra na página com o número e cria a sua própria password.</p>
+      <p class="lead" style="margin-top:0">Depois de o adicionares, o cliente entra na página ou na app só com o número de telemóvel.</p>
       <div class="row"><input class="input" id="nc-name" placeholder="Nome" value="${esc(ac.newName)}"><input class="input" id="nc-phone" type="tel" placeholder="9xx xxx xxx" value="${esc(ac.newPhone)}"></div>
       <div class="err">${ac.err ? esc(ac.err) : ''}</div>
       <div style="margin-top:10px"><button class="btn" id="nc-add" style="padding:11px;font-size:14px">Adicionar cliente</button></div>
     </div></div>
     <input class="input" id="nc-q" placeholder="Procurar por nome ou número" value="${esc(ac.q)}" style="margin-bottom:10px">
     <div class="rows" style="border-top:1px solid var(--border);border-radius:10px">
-      ${list.length ? list.map(c => `<div class="brow ${c.active ? (c.hasPassword ? 'confirmed' : 'pending') : ''}" data-phone="${esc(c.phone)}">
+      ${list.length ? list.map(c => `<div class="brow ${c.active ? 'confirmed' : ''}" data-phone="${esc(c.phone)}">
         <div class="brow-main" style="cursor:default">
           <span class="br-name" style="${c.active ? '' : 'text-decoration:line-through;opacity:.6'}">${esc(c.name)}</span>
           <span class="br-svc" style="font-family:var(--mono)">${esc(c.phone)}</span>
-          <span class="badge ${c.hasPassword ? 'confirmed' : 'pending'}" style="margin:0;font-size:10px">${!c.active ? 'INACTIVO' : c.hasPassword ? 'ACTIVO' : 'SEM PASSWORD'}</span>
+          <span class="badge ${c.active ? 'confirmed' : 'pending'}" style="margin:0;font-size:10px">${c.active ? 'ACTIVO' : 'INACTIVO'}</span>
         </div>
         <div class="brow-more" style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="sm" data-act="rename">Renomear</button>
-          ${c.hasPassword ? '<button class="sm" data-act="reset">Repor password</button>' : ''}
           <button class="sm" data-act="toggle">${c.active ? 'Desactivar' : 'Reactivar'}</button>
           <button class="sm danger" data-act="delete">Eliminar</button>
         </div>
       </div>`).join('') : '<div class="empty">Sem clientes.</div>'}
     </div>
-    <p class="hint" style="margin-top:12px">Vermelho: ainda não criou password (primeira entrada pendente). Verde: conta activa. "Repor password" apaga a password actual para o cliente criar outra.</p>`;
+    <p class="hint" style="margin-top:12px">Clientes desactivados não conseguem entrar; as marcações existentes mantêm-se.</p>`;
 
   $('#nc-q').oninput = e => { ac.q = e.target.value; renderClients(body); const i = $('#nc-q'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); };
   $('#nc-add').onclick = async () => {
@@ -916,7 +891,6 @@ async function renderClients(body){
       const act = btn.dataset.act;
       try {
         if (act === 'rename'){ const n = prompt('Nome do cliente:', c.name); if (n && n.trim() && n.trim() !== c.name){ await sb.updateClient(phone, { name: n.trim() }); ac.list = null; toast('Atualizado'); } }
-        else if (act === 'reset'){ if (await confirmDialog(`Repor a password de ${c.name}?`, 'O cliente terá de criar uma nova na próxima entrada.', 'Sim, repor')){ await sb.resetClientPassword(phone); ac.list = null; toast('Password reposta'); } }
         else if (act === 'toggle'){ await sb.updateClient(phone, { active: !c.active }); ac.list = null; toast(c.active ? 'Cliente desactivado' : 'Cliente reactivado'); }
         else if (act === 'delete'){ if (await confirmDialog(`Eliminar ${c.name}?`, 'As marcações existentes mantêm-se; o cliente deixa de poder entrar.', 'Sim, eliminar')){ await sb.deleteClient(phone); ac.list = null; toast('Eliminado'); } }
       } catch(e){ toast('Erro: ' + (e.message || '')); }
