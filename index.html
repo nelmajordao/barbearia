@@ -1051,9 +1051,9 @@ function renderSettings(){
     ${d.lunchEnabled ? `<div class="row" style="margin-top:10px"><input class="input mono" type="time" id="s-ls" value="${d.lunchStart}"><input class="input mono" type="time" id="s-le" value="${d.lunchEnd}"></div>
       <p class="lead" style="margin-top:6px">Os clientes não conseguem marcar dentro deste intervalo. O administrador continua livre de o fazer.</p>` : ''}
     <span class="label">Feriados e dias de encerramento</span>
-    <p class="lead" style="margin-top:0">Nestes dias os clientes não conseguem marcar. O administrador continua a poder.</p>
+    <p class="lead" style="margin-top:0">Nestes dias os clientes não conseguem marcar. O administrador continua a poder. "Feriados nacionais" adiciona os deste ano e do próximo.</p>
     <div class="row"><input class="input mono" type="date" id="s-cd1" title="Dia (ou início)"><input class="input mono" type="date" id="s-cd2" title="Até (opcional)"></div>
-    <div class="row" style="margin-top:8px"><button class="ghost" id="s-cd-add">Adicionar dia / intervalo</button><button class="ghost" id="s-cd-pt">Feriados nacionais ${new Date().getFullYear()}</button></div>
+    <div class="row" style="margin-top:8px"><button class="ghost" id="s-cd-add">Adicionar dia / intervalo</button><button class="ghost" id="s-cd-pt">Feriados nacionais</button></div>
     <div class="wrap" style="margin-top:10px">${d.closedDays.filter(x => x >= todayISO()).map(x => `<button class="chip on" data-cdr="${x}" title="Remover">${fmtPretty(x)} ${x.slice(0,4)} ✕</button>`).join('') || '<div class="empty" style="padding:6px 0">Nenhum dia marcado.</div>'}</div>
     <span class="label">Serviços e durações médias</span>
     <p class="lead" style="margin-top:0">Define o nome e a duração (em minutos) de cada serviço.</p>
