@@ -156,6 +156,8 @@
   @media (min-width:900px){.themes{grid-template-columns:repeat(5,1fr)}
   .sheet.wide{max-width:560px}}
   @media (max-width:380px){.brand{font-size:22px}.palette{width:32px;height:32px;font-size:16px}.logo{width:48px;height:48px}}
+  .check{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px;color:var(--text);cursor:pointer}
+  .check input{width:18px;height:18px;accent-color:var(--accent);margin:0}
   /* ---- Autocomplete de clientes ---- */
   .ac-wrap{position:relative}
   .ac-list{position:absolute;left:0;right:0;top:100%;z-index:6;background:var(--surface2);border:1px solid var(--border);border-radius:0 0 10px 10px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.25)}
@@ -1003,6 +1005,7 @@ function openNewBooking(date, initialTime){
     <label class="label" for="n-time">Hora (livre — sobreposição permitida)</label><input class="input mono" type="time" step="300" id="n-time" value="${initialTime || s.startTime}">
     <label class="label" for="n-name">Nome</label><div class="ac-wrap"><input class="input" id="n-name" placeholder="Nome do cliente (pesquisa na lista)" autocomplete="off"><div class="ac-list" id="n-ac"></div></div>
     <label class="label" for="n-phone">Telemóvel <span style="color:var(--muted2);font-weight:400;letter-spacing:0">(opcional)</span></label><input class="input" id="n-phone" type="tel" placeholder="9xx xxx xxx">
+    <label class="check" id="n-save-wrap" style="display:none"><input type="checkbox" id="n-save" checked><span>Guardar novo cliente na lista de clientes</span></label>
     <span class="label">Estado</span><div class="row" id="n-status"><button class="pill" data-s="pending">Pendente</button><button class="pill on" data-s="confirmed">Confirmada</button></div>
     <div class="err" id="n-err"></div>
     <div style="margin-top:16px"><button class="btn" id="n-create">Criar marcação</button></div>
@@ -1016,20 +1019,22 @@ function openNewBooking(date, initialTime){
     const q = nameIn.value.trim().toLowerCase(); if (q.length < 2 || !adminClients.list){ acBox.innerHTML = ''; return; }
     const hits = adminClients.list.filter(c => c.active && (c.name.toLowerCase().includes(q) || c.phone.includes(normPhone(q)))).slice(0, 6);
     acBox.innerHTML = hits.map(c => `<button type="button" class="ac-item" data-p="${esc(c.phone)}" data-n="${esc(c.name)}"><b>${esc(c.name)}</b><span>${esc(c.phone)}</span></button>`).join('');
-    acBox.querySelectorAll('.ac-item').forEach(b => b.onclick = () => { nameIn.value = b.dataset.n; phoneIn.value = b.dataset.p; acBox.innerHTML = ''; $('#n-time').focus(); });
+    acBox.querySelectorAll('.ac-item').forEach(b => b.onclick = () => { nameIn.value = b.dataset.n; phoneIn.value = b.dataset.p; acBox.innerHTML = ''; refreshSave(); $('#n-time').focus(); });
   };
   nameIn.addEventListener('input', renderAc);
   nameIn.addEventListener('blur', () => setTimeout(() => { acBox.innerHTML = ''; }, 150));
+  // a checkbox só aparece se houver telemóvel e esse número ainda não for cliente
+  const isNewClient = () => { const np = normPhone(phoneIn.value); return !!np && !(adminClients.list || []).some(c => c.phone === np); };
+  const refreshSave = () => { $('#n-save-wrap').style.display = isNewClient() ? 'flex' : 'none'; };
+  phoneIn.addEventListener('input', refreshSave); nameIn.addEventListener('input', refreshSave);
   $('#n-create').onclick = async () => {
     const name = $('#n-name').value.trim(), phone = $('#n-phone').value.trim(), time = $('#n-time').value;
     if (!name){ $('#n-err').textContent = 'Preenche o nome.'; return; }
     if (!time){ $('#n-err').textContent = 'Indica a hora.'; return; }
     $('#n-create').disabled = true;
     const ok = await createAdminBooking({ name, phone, service: svc, date, time, status });
-    if (ok && normPhone(phone)){
-      // cliente novo? guarda-o na lista (só com telemóvel)
-      const np = normPhone(phone);
-      if (!(adminClients.list || []).some(c => c.phone === np)){ try { await sb.upsertClient({ phone: np, name, active: true }); adminClients.list = null; toast('Marcação criada · cliente adicionado à lista'); } catch(e){ console.warn(e); } }
+    if (ok && isNewClient() && $('#n-save').checked){
+      try { await sb.upsertClient({ phone: normPhone(phone), name, active: true }); adminClients.list = null; toast('Marcação criada · cliente adicionado à lista'); } catch(e){ console.warn(e); }
     }
     if (ok){ closeSheet(); if (!$('#toast').classList.contains('show')) toast('Marcação criada'); renderAdmin(); } else { $('#n-create').disabled = false; $('#n-err').textContent = 'Erro ao criar. Tenta novamente.'; }
   };
