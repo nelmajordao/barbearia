@@ -156,6 +156,14 @@
   @media (min-width:900px){.themes{grid-template-columns:repeat(5,1fr)}
   .sheet.wide{max-width:560px}}
   @media (max-width:380px){.brand{font-size:22px}.palette{width:32px;height:32px;font-size:16px}.logo{width:48px;height:48px}}
+  /* ---- Autocomplete de clientes ---- */
+  .ac-wrap{position:relative}
+  .ac-list{position:absolute;left:0;right:0;top:100%;z-index:6;background:var(--surface2);border:1px solid var(--border);border-radius:0 0 10px 10px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+  .ac-list:empty{display:none}
+  .ac-item{width:100%;display:flex;justify-content:space-between;gap:10px;padding:10px 12px;text-align:left;color:var(--text);border-top:1px solid var(--border)}
+  .ac-item:first-child{border-top:0}
+  .ac-item:hover{background:var(--accent-dim)}
+  .ac-item span{font-family:var(--mono);font-size:12px;color:var(--muted)}
   /* ---- Lista agrupada por dia ---- */
   .day-group{margin-bottom:10px}
   .day-head{position:sticky;top:0;z-index:4;width:100%;display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;row-gap:2px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);text-align:left}
@@ -993,7 +1001,7 @@ function openNewBooking(date, initialTime){
   openSheet(`<h2>Nova marcação</h2><p class="lead">${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)} · podes marcar a qualquer hora, incluindo fora do horário de funcionamento (até ${AGENDA_END})</p>
     <span class="label">Serviço</span><div class="wrap" id="n-svc">${s.services.map(sv => `<button class="pill ${sv.key === svc ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}<small>${sv.duration} min</small></button>`).join('')}</div>
     <label class="label" for="n-time">Hora (livre — sobreposição permitida)</label><input class="input mono" type="time" step="300" id="n-time" value="${initialTime || s.startTime}">
-    <label class="label" for="n-name">Nome</label><input class="input" id="n-name" placeholder="Nome do cliente">
+    <label class="label" for="n-name">Nome</label><div class="ac-wrap"><input class="input" id="n-name" placeholder="Nome do cliente (pesquisa na lista)" autocomplete="off"><div class="ac-list" id="n-ac"></div></div>
     <label class="label" for="n-phone">Telemóvel <span style="color:var(--muted2);font-weight:400;letter-spacing:0">(opcional)</span></label><input class="input" id="n-phone" type="tel" placeholder="9xx xxx xxx">
     <span class="label">Estado</span><div class="row" id="n-status"><button class="pill" data-s="pending">Pendente</button><button class="pill on" data-s="confirmed">Confirmada</button></div>
     <div class="err" id="n-err"></div>
@@ -1001,13 +1009,29 @@ function openNewBooking(date, initialTime){
     <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Cancelar</button>`);
   $('#n-svc').querySelectorAll('[data-k]').forEach(p => p.onclick = () => { svc = p.dataset.k; $('#n-svc').querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === p)); });
   $('#n-status').querySelectorAll('[data-s]').forEach(p => p.onclick = () => { status = p.dataset.s; $('#n-status').querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === p)); });
+  // pesquisa na lista de clientes enquanto escreve
+  (async () => { if (adminClients.list === null){ try { adminClients.list = await sb.getClients(); } catch(e){ adminClients.list = []; } } })();
+  const acBox = $('#n-ac'), nameIn = $('#n-name'), phoneIn = $('#n-phone');
+  const renderAc = () => {
+    const q = nameIn.value.trim().toLowerCase(); if (q.length < 2 || !adminClients.list){ acBox.innerHTML = ''; return; }
+    const hits = adminClients.list.filter(c => c.active && (c.name.toLowerCase().includes(q) || c.phone.includes(normPhone(q)))).slice(0, 6);
+    acBox.innerHTML = hits.map(c => `<button type="button" class="ac-item" data-p="${esc(c.phone)}" data-n="${esc(c.name)}"><b>${esc(c.name)}</b><span>${esc(c.phone)}</span></button>`).join('');
+    acBox.querySelectorAll('.ac-item').forEach(b => b.onclick = () => { nameIn.value = b.dataset.n; phoneIn.value = b.dataset.p; acBox.innerHTML = ''; $('#n-time').focus(); });
+  };
+  nameIn.addEventListener('input', renderAc);
+  nameIn.addEventListener('blur', () => setTimeout(() => { acBox.innerHTML = ''; }, 150));
   $('#n-create').onclick = async () => {
     const name = $('#n-name').value.trim(), phone = $('#n-phone').value.trim(), time = $('#n-time').value;
     if (!name){ $('#n-err').textContent = 'Preenche o nome.'; return; }
     if (!time){ $('#n-err').textContent = 'Indica a hora.'; return; }
     $('#n-create').disabled = true;
     const ok = await createAdminBooking({ name, phone, service: svc, date, time, status });
-    if (ok){ closeSheet(); toast('Marcação criada'); renderAdmin(); } else { $('#n-create').disabled = false; $('#n-err').textContent = 'Erro ao criar. Tenta novamente.'; }
+    if (ok && normPhone(phone)){
+      // cliente novo? guarda-o na lista (só com telemóvel)
+      const np = normPhone(phone);
+      if (!(adminClients.list || []).some(c => c.phone === np)){ try { await sb.upsertClient({ phone: np, name, active: true }); adminClients.list = null; toast('Marcação criada · cliente adicionado à lista'); } catch(e){ console.warn(e); } }
+    }
+    if (ok){ closeSheet(); if (!$('#toast').classList.contains('show')) toast('Marcação criada'); renderAdmin(); } else { $('#n-create').disabled = false; $('#n-err').textContent = 'Erro ao criar. Tenta novamente.'; }
   };
   setTimeout(() => $('#n-name').focus(), 50);
 }
