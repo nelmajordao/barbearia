@@ -116,13 +116,13 @@
   .agenda-count{text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted2);margin:10px 0 16px}
   .hint{font-size:11px;color:var(--muted2);line-height:1.4;margin:8px 0 14px}
   .grid{position:relative;user-select:none;touch-action:pan-y}
-  .hline{position:absolute;left:0;right:0;display:flex;align-items:center;gap:6px}
+  .hline{position:absolute;left:0;right:0;display:flex;align-items:center;gap:6px;transform:translateY(-50%)}
   .hline span{width:42px;text-align:right;font-family:var(--mono);font-size:10px;color:var(--muted2)}
   .hline i{flex:1;height:1px;background:var(--border)}
   .lunch{position:absolute;left:48px;right:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted2)}
   .now{position:absolute;left:48px;right:0;height:2px;background:var(--accent);z-index:3}
   .after{position:absolute;left:48px;right:0;border-top:1px dashed var(--muted2);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted2);background:repeating-linear-gradient(135deg,transparent 0 10px,rgba(255,255,255,.02) 10px 20px)}
-  .block{position:absolute;left:56px;right:0;border-radius:9px;padding:8px 10px 6px 14px;display:flex;flex-direction:column;justify-content:center;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:grab;z-index:2;touch-action:none}
+  .block{position:absolute;left:56px;right:0;border-radius:9px;padding:8px 10px 6px 14px;display:flex;flex-direction:column;justify-content:center;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:pointer;z-index:2}
   .block.pending{background:var(--pending-bg);border-left-color:var(--pending)}
   .block.confirmed{background:var(--confirmed-bg);border-left-color:var(--confirmed)}
   .block.dragging{box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:5;cursor:grabbing}
@@ -261,13 +261,13 @@
 // >>> Substitui pelos valores da app Web no Firebase (Project settings → General → Your apps → Web)
 //     e a chave VAPID em Cloud Messaging → Web Push certificates → "Key pair".
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDVzqfJ8HnrGW8tguzZhuLX7ngNes9ieVY",
-  authDomain: "barbearia-capitao.firebaseapp.com",
-  projectId: "barbearia-capitao",
-  messagingSenderId: "908910252457",
-  appId: "1:908910252457:web:64bb8e2c5d3836cc81b4b8",
+  apiKey: "FIREBASE_API_KEY",
+  authDomain: "FIREBASE_PROJECT_ID.firebaseapp.com",
+  projectId: "FIREBASE_PROJECT_ID",
+  messagingSenderId: "FIREBASE_SENDER_ID",
+  appId: "FIREBASE_APP_ID",
 };
-const VAPID_KEY = "BELjMUcHKTzJr16EU2UX33dxOXnl8k3NlFR0TKjLt6AHBQPET5WdNRquXsbjgxXdWEDCBCbp3WkNGOFKVANtGDY";
+const VAPID_KEY = "FIREBASE_VAPID_KEY";
 
 window.fcm = { ready: false, supported: false };
 try {
@@ -948,7 +948,7 @@ function renderAgenda(body){
     <div class="agenda-count">${dayB.length} marcaç${dayB.length === 1 ? 'ão' : 'ões'}${pend ? ` · ${pend} pendente${pend > 1 ? 's' : ''}` : ''}</div>
     ${isClosedDay(date) ? `<div class="closed-banner">🔒 FECHADO<small>feriado / encerramento — só o administrador pode marcar</small></div>` : ''}
     <button class="ghost" id="ag-new" style="border-color:rgba(201,161,74,.4);color:var(--accent);font-size:13px">+ Nova marcação neste dia</button>
-    <p class="hint">${dayB.length ? 'Clica numa marcação para ver/editar · arrasta para mudar a hora · ' : 'Sem marcações neste dia · '}duplo clique num espaço vazio para marcar nessa hora.</p>
+    <p class="hint">${dayB.length ? 'Clica numa marcação para ver/editar · ' : 'Sem marcações neste dia · '}duplo clique num espaço vazio para marcar nessa hora.</p>
     ${grid}
     ${pastCount ? `<div style="margin-top:18px"><button class="ghost danger" id="ag-clear" style="font-size:13px">Apagar marcações de dias anteriores (${pastCount})</button></div>` : ''}</div>`;
 
@@ -973,27 +973,10 @@ function renderAgenda(body){
 }
 
 function bindDrag(el, startMin, endMin){
-  const b = state.bookings.find(x => x.id === el.dataset.id), dur = svcDur(b.service);
-  const baseTop = (timeToMin(b.time) - startMin) * PX_PER_MIN;
-  const latest = Math.max(startMin, endMin - dur);
-  const snap = topPx => Math.min(latest, Math.max(startMin, startMin + Math.round((topPx / PX_PER_MIN) / 5) * 5));
-  let startY = 0, off = 0, dragging = false, moved = false;
-  el.addEventListener('pointerdown', e => { startY = e.clientY; off = 0; dragging = true; moved = false; el.setPointerCapture(e.pointerId); });
-  el.addEventListener('pointermove', e => {
-    if (!dragging) return; off = e.clientY - startY;
-    if (Math.abs(off) > 4) moved = true;
-    if (!moved) return;
-    el.classList.add('dragging'); el.style.transform = `translateY(${off}px)`;
-    el.querySelector('.tt').textContent = minToTime(snap(baseTop + off));
-  });
-  const end = async e => {
-    if (!dragging) return; dragging = false; el.classList.remove('dragging'); el.style.transform = '';
-    if (!moved){ openDetail(b); return; }
-    const nt = minToTime(snap(baseTop + off));
-    if (nt !== b.time){ await moveBooking(b.id, nt); toast('Movida para ' + nt); }
-    renderAdmin();
-  };
-  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  // arrastar desactivado: tocar abre o detalhe (Confirmar / Editar / Eliminar)
+  const b = state.bookings.find(x => x.id === el.dataset.id);
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', e => { e.stopPropagation(); openDetail(b); });
 }
 
 function openDetail(b){
