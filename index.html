@@ -729,7 +729,7 @@ function renderClient(){
       : `<div style="font-weight:600">Queres ser avisado quando for confirmada?</div><div class="lead" style="margin:4px 0 10px">Recebes uma notificação neste dispositivo quando a barbearia confirmar ou alterar a hora, e um lembrete no próprio dia.</div>
          <button class="btn" id="push-btn" style="padding:11px;font-size:14px">Avisar-me</button><div class="err" id="push-err">${c.pushErr ? esc(c.pushErr) : ''}</div>`}
     </div></div>` : '';
-  const who = `<div class="between" style="margin-bottom:14px"><div><div class="phone">Sessão de</div><div style="font-weight:600">${esc(cs.name)} <span class="phone">· ${esc(cs.phone)}</span></div></div><button class="sm" id="c-logout">Sair</button></div>${client.loyalty && client.loyalty.stamps > 0 ? loyaltyCardHtml(client.loyalty) : ''}`;
+  const who = `<div class="between" style="margin-bottom:14px"><div><div class="phone">Sessão de</div><div style="font-weight:600">${esc(cs.name)} <span class="phone">· ${esc(cs.phone)}</span></div></div><button class="sm" id="c-logout">Sair</button></div>${client.loyalty && Number(client.loyalty.stamps) > 0 ? loyaltyCardHtml(client.loyalty) : ''}`;
 
   if (c.submitted){
     el.innerHTML = `<div class="cols"><div class="col" style="max-width:560px;margin:0 auto">${who}<h2>Pedido enviado</h2><p class="lead">A tua marcação está pendente de confirmação pela barbearia.</p>${ticket(c.submitted)}${pushCard()}<button class="ghost" id="new-bk">Voltar</button></div></div>`;
@@ -925,7 +925,7 @@ async function renderClients(body){
     <div class="rows" style="border-top:1px solid var(--border);border-radius:10px">
       ${list.length ? list.map(c => { const blocked = state.settings.blacklist.includes(c.phone); return `<div class="brow ${!c.active ? '' : blocked ? 'pending' : 'confirmed'}" data-phone="${esc(c.phone)}">
         <div class="brow-main" style="cursor:default">
-          <span class="br-name" style="${c.active ? '' : 'text-decoration:line-through;opacity:.6'}">${esc(c.name)}${state.settings.loyalty.enabled && adminClients.loy && adminClients.loy[c.phone] ? `<span class="loy-mini" title="${esc(state.settings.loyalty.name)}">✂ ${adminClients.loy[c.phone].stamps}/${adminClients.loy[c.phone].total}<i><b style="width:${Math.min(100, adminClients.loy[c.phone].stamps/adminClients.loy[c.phone].total*100)}%"></b></i></span>` : ''}</span>
+          <span class="br-name" style="${c.active ? '' : 'text-decoration:line-through;opacity:.6'}">${esc(c.name)}${state.settings.loyalty.enabled && adminClients.loy && adminClients.loy[c.phone] ? `<span class="loy-mini" title="${esc(state.settings.loyalty.name)}">✂ ${adminClients.loy[c.phone].stamps}/${adminClients.loy[c.phone].total}<i><b style="width:${Math.min(100, adminClients.loy[c.phone].stamps/adminClients.loy[c.phone].total*100)}%"></b></i>${adminClients.loy[c.phone].redeemed ? `<span title="cartões completos / prémios ganhos">🎁 ${adminClients.loy[c.phone].redeemed}</span>` : ''}</span>` : ''}</span>
           <span class="br-svc" style="font-family:var(--mono)">${esc(c.phone)}</span>
           <span class="badge ${c.active && !blocked ? 'confirmed' : 'pending'}" style="margin:0;font-size:10px">${!c.active ? 'INACTIVO' : blocked ? 'BLOQUEADO' : 'ACTIVO'}</span>
         </div>
@@ -1032,8 +1032,10 @@ async function openDetail(b){
   const canStamp = state.settings.loyalty.enabled && normPhone(b.phone) && b.status === 'confirmed';
   let st = null; if (state.settings.loyalty.enabled && normPhone(b.phone)) { try { st = await sb.loyaltyStatus(b.phone); } catch(e){} }
   const stamped = st && (st.stamped || []).includes(b.id);
+  const stampedOld = st && !stamped && (st.stamped_all || []).includes(b.id); // carimbo de um cartão já resgatado
   const loyHtml = st ? loyaltyCardHtml(st, { actions: `<div class="row" style="margin-top:10px">
-      ${canStamp ? `<button class="sm ${stamped ? '' : 'accent'}" id="d-stamp">${stamped ? '✓ Carimbada · retirar' : '✂ Carimbar esta marcação'}</button>` : `<span class="hint" style="margin:0">${b.status !== 'confirmed' ? 'Carimba depois de confirmar.' : ''}</span>`}
+      ${stampedOld ? `<span class="hint" style="margin:0">✓ Carimbada num cartão anterior (já resgatado).</span>`
+        : canStamp ? `<button class="sm ${stamped ? '' : 'accent'}" id="d-stamp">${stamped ? '✓ Carimbada · retirar' : '✂ Carimbar esta marcação'}</button>` : `<span class="hint" style="margin:0">${b.status !== 'confirmed' ? 'Carimba depois de confirmar.' : ''}</span>`}
       ${st.stamps >= st.total ? `<button class="sm accent" id="d-redeem">🎁 Resgatar ${esc(st.reward)}</button>` : ''}</div>` }) : '';
   openSheet(`<div class="code">${esc(b.code)}</div><div class="name" style="font-size:24px">${esc(b.name)}</div><div class="phone">${esc(b.phone) || "sem telemóvel"}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}
     ${loyHtml}
