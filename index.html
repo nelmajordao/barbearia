@@ -729,7 +729,7 @@ function renderClient(){
       : `<div style="font-weight:600">Queres ser avisado quando for confirmada?</div><div class="lead" style="margin:4px 0 10px">Recebes uma notificação neste dispositivo quando a barbearia confirmar ou alterar a hora, e um lembrete no próprio dia.</div>
          <button class="btn" id="push-btn" style="padding:11px;font-size:14px">Avisar-me</button><div class="err" id="push-err">${c.pushErr ? esc(c.pushErr) : ''}</div>`}
     </div></div>` : '';
-  const who = `<div class="between" style="margin-bottom:14px"><div><div class="phone">Sessão de</div><div style="font-weight:600">${esc(cs.name)} <span class="phone">· ${esc(cs.phone)}</span></div></div><button class="sm" id="c-logout">Sair</button></div>${loyaltyCardHtml(client.loyalty)}`;
+  const who = `<div class="between" style="margin-bottom:14px"><div><div class="phone">Sessão de</div><div style="font-weight:600">${esc(cs.name)} <span class="phone">· ${esc(cs.phone)}</span></div></div><button class="sm" id="c-logout">Sair</button></div>${client.loyalty && client.loyalty.stamps > 0 ? loyaltyCardHtml(client.loyalty) : ''}`;
 
   if (c.submitted){
     el.innerHTML = `<div class="cols"><div class="col" style="max-width:560px;margin:0 auto">${who}<h2>Pedido enviado</h2><p class="lead">A tua marcação está pendente de confirmação pela barbearia.</p>${ticket(c.submitted)}${pushCard()}<button class="ghost" id="new-bk">Voltar</button></div></div>`;
