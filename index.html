@@ -1108,11 +1108,11 @@ function renderSettings(){
     <span class="label">Horário de funcionamento</span>
     <div class="row"><input class="input mono" type="time" id="s-start" value="${d.startTime}"><input class="input mono" type="time" id="s-end" value="${d.endTime}"></div>
     <span class="label">Hora de almoço</span>
-    <button class="chip ${d.lunchEnabled ? 'on' : ''}" id="s-lunch">${d.lunchEnabled ? 'Ativa' : 'Desativada'} — clica para alternar</button>
+    <button class="chip ${d.lunchEnabled ? 'on' : ''}" id="s-lunch">${d.lunchEnabled ? 'Ativa' : 'Desativada'} — clica para alterar</button>
     ${d.lunchEnabled ? `<div class="row" style="margin-top:10px"><input class="input mono" type="time" id="s-ls" value="${d.lunchStart}"><input class="input mono" type="time" id="s-le" value="${d.lunchEnd}"></div>
       <p class="lead" style="margin-top:6px">Os clientes não conseguem marcar dentro deste intervalo. O administrador continua livre de o fazer.</p>` : ''}
     <span class="label">Cartão de fidelidade</span>
-    <button class="chip ${d.loyalty.enabled ? 'on' : ''}" id="s-loy">${d.loyalty.enabled ? 'Activo' : 'Desactivado'} — clica para alternar</button>
+    <button class="chip ${d.loyalty.enabled ? 'on' : ''}" id="s-loy">${d.loyalty.enabled ? 'Activo' : 'Desactivado'} — clica para alterar</button>
     ${d.loyalty.enabled ? `<div class="row" style="margin-top:10px"><input class="input" id="s-loy-name" placeholder="Nome do cartão" value="${esc(d.loyalty.name)}"><input class="input mono" type="number" min="2" max="30" id="s-loy-n" placeholder="carimbos" value="${d.loyalty.stamps}" style="flex:0 0 110px"></div>
     <input class="input" id="s-loy-reward" placeholder="Prémio ao completar (ex.: Corte grátis)" value="${esc(d.loyalty.reward)}" style="margin-top:8px">
     <p class="lead" style="margin-top:6px">O barbeiro carimba cada marcação confirmada no detalhe da agenda. Ao completar, resgata o prémio e o cartão recomeça.</p>` : ''}
