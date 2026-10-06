@@ -110,6 +110,8 @@
   /* Agenda */
   .agenda-head{display:flex;align-items:center;gap:8px}
   .agenda-wrap{max-width:640px;margin:0 auto}
+  .wait-banner{width:100%;margin:0 0 14px;padding:12px 16px;border-radius:12px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--text);font-weight:600;text-align:left;display:flex;justify-content:space-between}
+  .wait-banner span{color:var(--accent)}
   .closed-banner{margin:0 0 14px;padding:14px 16px;border-radius:12px;background:#8B2E2E;color:#fff;text-align:center;font-family:var(--display);font-size:22px;letter-spacing:2px;box-shadow:0 4px 18px rgba(139,46,46,.45)}
   .closed-banner small{display:block;font-family:var(--sans);font-size:12px;letter-spacing:0;font-weight:500;opacity:.9;margin-top:2px}
   .agenda-head h3{flex:1;text-align:center;font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:.5px}
@@ -476,6 +478,13 @@ const sb = {
   clientCancel: (token, id) => rpc('client_cancel_booking', { p_token: token, p_id: id }),
   clientRegisterPush: (token, fcm) => rpc('client_register_push', { p_token: token, p_fcm_token: fcm }),
   clientLoyalty: token => rpc('client_loyalty', { p_token: token }),
+  clientJoinWaitlist: (token, date, service) => rpc('client_join_waitlist', { p_token: token, p_date: date, p_service: service }),
+  clientMyWaitlist: async token => (await rpc('client_my_waitlist', { p_token: token })) || [],
+  clientLeaveWaitlist: (token, id) => rpc('client_leave_waitlist', { p_token: token, p_id: id }),
+  async getWaitlist(date){ const r = await fetch(`${REST}/waitlist?select=*&status=neq.done&date=eq.${date}&order=created_at.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('waitlist ' + r.status); return r.json(); },
+  async getWaitlistCounts(){ const r = await fetch(`${REST}/waitlist?select=date&status=neq.done&date=gte.${todayISO()}`, { headers: await hdrs() }); if (!r.ok) return {}; const out = {}; (await r.json()).forEach(w => { out[w.date] = (out[w.date] || 0) + 1; }); return out; },
+  async waitlistDone(id){ const r = await fetch(`${REST}/waitlist?id=eq.${id}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify({ status: 'done' }) }); if (!r.ok) throw new Error('waitlist ' + r.status); },
+  async waitlistRemove(id){ const r = await fetch(`${REST}/waitlist?id=eq.${id}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('waitlist ' + r.status); },
   loyaltyStatus: phone => rpc('loyalty_status', { p_phone: phone }),
   loyaltyToggle: id => rpc('loyalty_toggle_stamp', { p_booking_id: id }),
   loyaltyRedeem: phone => rpc('loyalty_redeem', { p_phone: phone }),
@@ -592,20 +601,20 @@ async function createClientBooking({service, date, time}){
   } catch(e){ console.error(e); if (/SESSAO_INVALIDA/.test(e.message)){ cs.clear(); renderClient(); return 'A tua sessão expirou. Entra de novo.'; } return e.message && !/^client_create_booking/.test(e.message) ? e.message : 'Erro ao guardar. Tenta novamente.'; }
   finally { state.saving = false; }
 }
-async function createAdminBooking({name, phone, service, date, time, status}){
+async function createAdminBooking({name, phone, service, date, time, status, duration}){
   state.saving = true;
   try {
     await reload();
     const dup = state.bookings.some(b => b.status !== 'deleted' && b.date === date && b.time === time && b.service === service && normPhone(b.phone) === normPhone(phone));
     if (!dup){
-      const b = { id: genId(), code: genCode(), name, phone, service, date, time, duration: svcDur(service), status, created_at: new Date().toISOString(), created_by: 'admin' };
+      const b = { id: genId(), code: genCode(), name, phone, service, date, time, duration: duration || svcDur(service), status, created_at: new Date().toISOString(), created_by: 'admin' };
       await sb.insert(b); state.bookings.push(b);
     }
     return true;
   } catch(e){ console.error(e); return false; } finally { state.saving = false; }
 }
 async function confirmBooking(id){ const b = state.bookings.find(x => x.id === id); b.status = 'confirmed'; await sb.update(b); }
-async function updateBooking(b){ b.duration = svcDur(b.service); await sb.update(b); }
+async function updateBooking(b){ if (!b.duration) b.duration = svcDur(b.service); await sb.update(b); }
 async function moveBooking(id, newTime){ const b = state.bookings.find(x => x.id === id); if (b.time === newTime) return; b.time = newTime; await sb.update(b); }
 async function deleteBooking(id){ await sb.remove(id); state.bookings = state.bookings.filter(x => x.id !== id); }
 async function clearPast(){ const t = todayISO(); for (const b of state.bookings.filter(b => b.status !== 'deleted' && b.date < t)) await sb.remove(b.id); await reload(); }
@@ -669,7 +678,7 @@ const cs = {
   get loggedIn(){ return !!this.token; },
 };
 
-const client = { service:null, date:null, time:null, period:null, err:null, submitted:null, mine:null, loyalty:null, pushDone:false, pushErr:null,
+const client = { service:null, date:null, time:null, period:null, err:null, submitted:null, mine:null, loyalty:null, waitlist:[], pushDone:false, pushErr:null,
   // ecrã de entrada
   gate: { phone:'', err:null, busy:false } };
 
@@ -684,7 +693,7 @@ function splitSlots(slots){
 }
 function defaultPeriod(d, s){ const slots = availableSlots(d, s); if (!slots.length) return null; return splitSlots(slots)[0].length ? 'manha' : 'tarde'; }
 
-async function loadMine(){ try { client.mine = await sb.clientMyBookings(cs.token); client.loyalty = await sb.clientLoyalty(cs.token).catch(() => null); } catch(e){ if (/SESSAO_INVALIDA/.test(e.message)){ cs.clear(); } client.mine = []; } }
+async function loadMine(){ try { client.mine = await sb.clientMyBookings(cs.token); client.loyalty = await sb.clientLoyalty(cs.token).catch(() => null); client.waitlist = await sb.clientMyWaitlist(cs.token).catch(() => []); } catch(e){ if (/SESSAO_INVALIDA/.test(e.message)){ cs.clear(); } client.mine = []; } }
 
 /* ---- Ecrã de entrada do cliente ---- */
 function renderGate(){
@@ -742,7 +751,14 @@ function renderClient(){
   const slots = c.date ? availableSlots(c.date, c.service) : [];
   let slotHtml = '';
   if (c.date){
-    if (!slots.length) slotHtml = `<span class="label">Hora disponível</span><div class="empty">Sem horários livres neste dia. Escolhe outro dia.</div>`;
+    if (!slots.length){
+      const already = (c.waitlist || []).some(w => w.date === c.date);
+      slotHtml = `<span class="label">Hora disponível</span><div class="card" style="margin-top:4px"><div class="in" style="padding:14px 16px">
+        <div style="font-weight:600">Este dia está cheio.</div>
+        ${already ? `<div class="lead" style="margin:4px 0 0;color:var(--ok)">✓ Já estás na lista de espera para este dia.</div>`
+          : `<div class="lead" style="margin:4px 0 10px">Queres ficar em lista de espera? A barbearia vê a lista e contacta-te se conseguir encaixar-te.</div><button class="btn" id="c-wait" style="padding:11px;font-size:14px">Ficar em lista de espera</button>`}
+      </div></div>`;
+    }
     else {
       const [manha, tarde] = splitSlots(slots);
       const sec = (key, title, arr) => {
@@ -754,6 +770,7 @@ function renderClient(){
     }
   }
   const hasPending = (c.mine || []).some(b => b.status === 'pending');
+  const waitHtml = (c.waitlist || []).length ? `<div class="card"><div class="in" style="padding:14px 16px"><div style="font-weight:600;margin-bottom:6px">Lista de espera</div>${c.waitlist.map(w => `<div class="between" style="padding:6px 0;border-top:1px solid var(--border)"><span>${fmtPretty(w.date)} · ${esc(svcLabel(w.service))}</span><button class="sm" data-leave="${w.id}">Sair</button></div>`).join('')}</div></div>` : '';
   const mineHtml = c.mine === null ? '<div class="empty">a carregar…</div>'
     : c.mine.length ? c.mine.map(b => ticket(b).replace('</div></div>', `${b.status === 'pending' ? `<div style="margin-top:12px"><button class="sm danger" data-cancel="${b.id}">Cancelar pedido</button></div>` : ''}</div></div>`)).join('')
     : '<div class="empty">Não tens marcações futuras.</div>';
@@ -772,6 +789,7 @@ function renderClient(){
     </div><div class="col col-side">
     <h2 class="small">As minhas marcações</h2>
     <div id="c-mine">${mineHtml}</div>
+    ${waitHtml}
     ${pushCard()}
     </div></div>`;
 
@@ -785,6 +803,8 @@ function renderClient(){
   });
   $('#c-logout').onclick = clientLogout;
   const pb = $('#push-btn'); if (pb) pb.onclick = async () => { pb.disabled = true; pb.textContent = 'A activar…'; const err = await push.registerClient(); if (err){ c.pushErr = err; } else { c.pushDone = true; c.pushErr = null; } renderClient(); };
+  const wb = $('#c-wait'); if (wb) wb.onclick = async () => { wb.disabled = true; try { await sb.clientJoinWaitlist(cs.token, c.date, c.service); toast('Estás na lista de espera'); await loadMine(); renderClient(); } catch(e){ toast(e.message || 'Erro'); wb.disabled = false; } };
+  el.querySelectorAll('[data-leave]').forEach(b => b.onclick = async () => { try { await sb.clientLeaveWaitlist(cs.token, +b.dataset.leave); toast('Saíste da lista de espera'); await loadMine(); renderClient(); } catch(e){ toast(e.message || 'Erro'); } });
   $('#c-submit').onclick = async () => {
     if (!c.date || !c.time){ c.err = 'Escolhe o dia e a hora.'; return renderClient(); }
     c.err = null; $('#c-submit').disabled = true;
@@ -798,7 +818,7 @@ function renderClient(){
    LOGIN
    ========================================================= */
 async function enterAdmin(){
-  admin.tab = 'pendentes'; admin.agendaDate = todayISO(); adminClients.list = null;
+  admin.tab = 'pendentes'; admin.agendaDate = todayISO(); adminClients.list = null; admin.waitCounts = null;
   try { state.settings = await sb.getSettings(); state.bookings = await sb.getBookings(); }
   catch(e){ await auth.signOut(); $('#login-err').textContent = 'Esta conta não tem permissões de administrador.'; show('login'); return; }
   renderAdmin(); show('admin');
@@ -817,7 +837,7 @@ $('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin();
 /* =========================================================
    ADMIN
    ========================================================= */
-const admin = { tab: 'pendentes', agendaDate: todayISO(), expanded: null, openDays: new Set(), closedDays: new Set() };
+const admin = { tab: 'pendentes', agendaDate: todayISO(), expanded: null, openDays: new Set(), closedDays: new Set(), waitCounts: null };
 const TABS = { pendentes:'Pendentes', confirmadas:'Confirmadas', todas:'Todas', agenda:'Agenda', clientes:'Clientes' };
 
 function renderAdmin(){
@@ -882,18 +902,19 @@ function bindRows(root){
 
 /* Folha de edição (usada na lista e no detalhe da agenda) */
 function openEdit(b){
-  const d = { service: b.service, date: b.date, time: b.time, status: b.status };
+  const d = { service: b.service, date: b.date, time: b.time, status: b.status, duration: b.duration || svcDur(b.service) };
   openSheet(`<h2 class="small">A editar: ${esc(b.name)}</h2><div class="phone">${esc(b.phone) || 'sem telemóvel'}</div>
     <span class="label">Serviço</span><div class="wrap" id="e-svc">${state.settings.services.map(sv => `<button class="pill ${d.service === sv.key ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}</button>`).join('')}</div>
     <label class="label" for="e-date">Dia</label><input class="input mono" type="date" id="e-date" value="${d.date}">
-    <label class="label" for="e-time">Hora (livre)</label><input class="input mono" type="time" step="300" id="e-time" value="${d.time}">
+    <div class="row"><div><label class="label" for="e-time">Hora (livre)</label><input class="input mono" type="time" step="300" id="e-time" value="${d.time}"></div>
+    <div style="flex:0 0 120px"><label class="label" for="e-dur">Duração (min)</label><input class="input mono" type="number" min="5" max="240" step="5" id="e-dur" value="${d.duration}"></div></div>
     <span class="label">Estado</span><div class="row" id="e-status"><button class="pill ${d.status === 'pending' ? 'on' : ''}" data-s="pending">Pendente</button><button class="pill ${d.status === 'confirmed' ? 'on' : ''}" data-s="confirmed">Confirmada</button></div>
     <div style="margin-top:16px"><button class="btn" id="e-save">Guardar</button></div>
     <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Cancelar</button>`);
-  $('#e-svc').querySelectorAll('[data-k]').forEach(p => p.onclick = () => { d.service = p.dataset.k; $('#e-svc').querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === p)); });
+  $('#e-svc').querySelectorAll('[data-k]').forEach(p => p.onclick = () => { d.service = p.dataset.k; $('#e-svc').querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === p)); $('#e-dur').value = svcDur(d.service); });
   $('#e-status').querySelectorAll('[data-s]').forEach(p => p.onclick = () => { d.status = p.dataset.s; $('#e-status').querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === p)); });
   $('#e-save').onclick = async () => {
-    d.date = $('#e-date').value || d.date; d.time = $('#e-time').value || d.time;
+    d.date = $('#e-date').value || d.date; d.time = $('#e-time').value || d.time; d.duration = Math.max(5, parseInt($('#e-dur').value) || svcDur(d.service));
     Object.assign(b, d); $('#e-save').disabled = true;
     try { await updateBooking(b); closeSheet(); toast('Atualizada'); renderAdmin(); } catch(e){ $('#e-save').disabled = false; toast('Erro ao guardar'); }
   };
@@ -962,6 +983,23 @@ async function renderClients(body){
   });
 }
 
+
+/* ---- Lista de espera (admin) ---- */
+async function openWaitlist(date){
+  let list = []; try { list = await sb.getWaitlist(date); } catch(e){ toast('Erro a carregar'); return; }
+  const d = parseISO(date);
+  openSheet(`<h2 class="small">Lista de espera · ${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)}</h2>
+    <p class="lead">Por ordem de chegada. "Marcar" abre a nova marcação já preenchida e retira o cliente da lista.</p>
+    ${list.length ? list.map(w => `<div class="brow" style="border:1px solid var(--border);border-radius:10px;margin-top:8px"><div class="brow-main" style="cursor:default;border-left-color:var(--pending)">
+        <span class="br-name">${esc(w.name)}<div class="phone">${esc(w.phone)} · ${esc(svcLabel(w.service))}</div></span>
+        <span class="br-svc" style="font-family:var(--mono)">${new Date(w.created_at).toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</span></div>
+      <div class="brow-more" style="display:flex;gap:6px"><button class="sm accent" data-wbook="${w.id}">Marcar</button><button class="sm danger" data-wdel="${w.id}">Remover</button></div></div>`).join('')
+      : '<div class="empty">Ninguém em espera.</div>'}
+    <button class="ghost" style="border:0;margin-top:12px" onclick="closeSheet()">Fechar</button>`);
+  $('#sheet').querySelectorAll('[data-wbook]').forEach(b => b.onclick = () => { const w = list.find(x => x.id == b.dataset.wbook); closeSheet(); openNewBooking(date, null, { name: w.name, phone: w.phone, service: w.service, waitlistId: w.id }); });
+  $('#sheet').querySelectorAll('[data-wdel]').forEach(b => b.onclick = async () => { if (!(await confirmDialog('Remover da lista de espera?'))) return; try { await sb.waitlistRemove(+b.dataset.wdel); admin.waitCounts = null; toast('Removido'); openWaitlist(date); } catch(e){ toast('Erro'); } });
+}
+
 /* ---- Agenda ---- */
 const PX_PER_MIN = 1.15;
 function shiftISO(iso, delta){ const d = parseISO(iso); d.setDate(d.getDate()+delta); return isoOf(d); }
@@ -987,21 +1025,26 @@ function renderAgenda(body){
     if (endMin > closeMin) after = `<div class="after" style="top:${(closeMin-startMin)*PX_PER_MIN}px;height:${(endMin-closeMin)*PX_PER_MIN}px">FORA DE HORÁRIO · SÓ ADMIN</div>`;
     let now = '';
     if (isToday){ const n = new Date(), nm = n.getHours()*60+n.getMinutes(); if (nm >= startMin && nm <= endMin) now = `<div class="now" style="top:${(nm-startMin)*PX_PER_MIN}px"></div>`; }
-    const blocks = dayB.map(b => { const dur = svcDur(b.service), h = Math.max(34, dur*PX_PER_MIN);
+    const blocks = dayB.map(b => { const dur = b.duration || svcDur(b.service), h = Math.max(34, dur*PX_PER_MIN);
       return `<div class="block ${b.status}" data-id="${b.id}" style="top:${(timeToMin(b.time)-startMin)*PX_PER_MIN}px;height:${h}px"><div class="ln"><span class="tt">${b.time}</span><span class="nm">${esc(b.name)}</span><span class="t">${dur}min</span></div>${h > 52 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
     grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${after}${blocks}${now}</div>`;
   }
 
   body.innerHTML = `<div class="agenda-wrap">
-    <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3>${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''}</h3><button class="sm" id="ag-next">▶</button></div>
+    <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3>${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''}</h3><button class="sm ${isToday ? '' : 'accent'}" id="ag-today" title="Ir para hoje" ${isToday ? 'disabled style="opacity:.4"' : ''}>Hoje</button><button class="sm" id="ag-next">▶</button></div>
     <div class="agenda-count">${dayB.length} marcaç${dayB.length === 1 ? 'ão' : 'ões'}${pend ? ` · ${pend} pendente${pend > 1 ? 's' : ''}` : ''}</div>
     ${isClosedDay(date) ? `<div class="closed-banner">🔒 FECHADO<small>feriado / encerramento — só o administrador pode marcar</small></div>` : ''}
+    ${(admin.waitCounts && admin.waitCounts[date]) ? `<button class="wait-banner" id="ag-wait">⏳ ${admin.waitCounts[date]} em lista de espera para este dia <span>ver ›</span></button>` : ''}
     <button class="ghost" id="ag-new" style="border-color:rgba(201,161,74,.4);color:var(--accent);font-size:13px">+ Nova marcação neste dia</button>
     <p class="hint">${dayB.length ? 'Clica numa marcação para ver/editar · ' : 'Sem marcações neste dia · '}duplo clique num espaço vazio para marcar nessa hora.</p>
     ${grid}
     ${pastCount ? `<div style="margin-top:18px"><button class="ghost danger" id="ag-clear" style="font-size:13px">Apagar marcações de dias anteriores (${pastCount})</button></div>` : ''}</div>`;
 
   $('#ag-prev').onclick = () => { admin.agendaDate = shiftISO(date,-1); renderAdmin(); };
+  $('#ag-today').onclick = () => { admin.agendaDate = todayISO(); renderAdmin(); };
+  const wbtn = $('#ag-wait'); if (wbtn) wbtn.onclick = () => openWaitlist(date);
+  if (!admin.waitCounts){ sb.getWaitlistCounts().then(c => { admin.waitCounts = c; if (c[date]) renderAdmin(); }).catch(() => { admin.waitCounts = {}; }); }
+  $('.agenda-head h3').onclick = () => { admin.agendaDate = todayISO(); renderAdmin(); }; $('.agenda-head h3').style.cursor = 'pointer';
   $('#ag-next').onclick = () => { admin.agendaDate = shiftISO(date, 1); renderAdmin(); };
   $('#ag-new').onclick = () => openNewBooking(date);
   const clr = $('#ag-clear'); if (clr) clr.onclick = async () => { if (await confirmDialog('Apagar marcações passadas?','Esta ação é irreversível.','Sim, apagar')){ await clearPast(); toast('Apagadas'); renderAdmin(); } };
@@ -1048,19 +1091,20 @@ async function openDetail(b){
   $('#d-delete').onclick = async () => { await deleteBooking(b.id); closeSheet(); toast('Eliminada'); renderAdmin(); };
 }
 
-function openNewBooking(date, initialTime){
-  const d = parseISO(date), s = state.settings; let svc = firstSvc(), status = 'confirmed';
+function openNewBooking(date, initialTime, prefill){
+  const d = parseISO(date), s = state.settings; let svc = (prefill && prefill.service) || firstSvc(), status = 'confirmed';
   openSheet(`<h2>Nova marcação</h2><p class="lead">${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)} · podes marcar a qualquer hora, incluindo fora do horário de funcionamento (até ${AGENDA_END})</p>
     <span class="label">Serviço</span><div class="wrap" id="n-svc">${s.services.map(sv => `<button class="pill ${sv.key === svc ? 'on' : ''}" style="padding:10px 14px" data-k="${esc(sv.key)}">${esc(sv.label)}<small>${sv.duration} min</small></button>`).join('')}</div>
-    <label class="label" for="n-time">Hora (livre — sobreposição permitida)</label><input class="input mono" type="time" step="300" id="n-time" value="${initialTime || s.startTime}">
-    <label class="label" for="n-name">Nome</label><div class="ac-wrap"><input class="input" id="n-name" placeholder="Nome do cliente (pesquisa na lista)" autocomplete="off"><div class="ac-list" id="n-ac"></div></div>
-    <label class="label" for="n-phone">Telemóvel <span style="color:var(--muted2);font-weight:400;letter-spacing:0">(opcional)</span></label><input class="input" id="n-phone" type="tel" placeholder="9xx xxx xxx">
+    <div class="row"><div><label class="label" for="n-time">Hora (livre)</label><input class="input mono" type="time" step="300" id="n-time" value="${initialTime || s.startTime}"></div>
+    <div style="flex:0 0 120px"><label class="label" for="n-dur">Duração (min)</label><input class="input mono" type="number" min="5" max="240" step="5" id="n-dur" value="${svcDur(svc)}"></div></div>
+    <label class="label" for="n-name">Nome</label><div class="ac-wrap"><input class="input" id="n-name" placeholder="Nome do cliente (pesquisa na lista)" autocomplete="off" value="${prefill ? esc(prefill.name) : ''}"><div class="ac-list" id="n-ac"></div></div>
+    <label class="label" for="n-phone">Telemóvel <span style="color:var(--muted2);font-weight:400;letter-spacing:0">(opcional)</span></label><input class="input" id="n-phone" type="tel" placeholder="9xx xxx xxx" value="${prefill ? esc(prefill.phone) : ''}">
     <label class="check" id="n-save-wrap" style="display:none"><input type="checkbox" id="n-save" checked><span>Guardar novo cliente na lista de clientes</span></label>
     <span class="label">Estado</span><div class="row" id="n-status"><button class="pill" data-s="pending">Pendente</button><button class="pill on" data-s="confirmed">Confirmada</button></div>
     <div class="err" id="n-err"></div>
     <div style="margin-top:16px"><button class="btn" id="n-create">Criar marcação</button></div>
     <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Cancelar</button>`);
-  $('#n-svc').querySelectorAll('[data-k]').forEach(p => p.onclick = () => { svc = p.dataset.k; $('#n-svc').querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === p)); });
+  $('#n-svc').querySelectorAll('[data-k]').forEach(p => p.onclick = () => { svc = p.dataset.k; $('#n-svc').querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', x === p)); $('#n-dur').value = svcDur(svc); });
   $('#n-status').querySelectorAll('[data-s]').forEach(p => p.onclick = () => { status = p.dataset.s; $('#n-status').querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', x === p)); });
   // pesquisa na lista de clientes enquanto escreve
   (async () => { if (adminClients.list === null){ try { adminClients.list = await sb.getClients(); } catch(e){ adminClients.list = []; } } })();
@@ -1078,14 +1122,15 @@ function openNewBooking(date, initialTime){
   const refreshSave = () => { $('#n-save-wrap').style.display = isNewClient() ? 'flex' : 'none'; };
   phoneIn.addEventListener('input', refreshSave); nameIn.addEventListener('input', refreshSave);
   $('#n-create').onclick = async () => {
-    const name = $('#n-name').value.trim(), phone = $('#n-phone').value.trim(), time = $('#n-time').value;
+    const name = $('#n-name').value.trim(), phone = $('#n-phone').value.trim(), time = $('#n-time').value, duration = Math.max(5, parseInt($('#n-dur').value) || svcDur(svc));
     if (!name){ $('#n-err').textContent = 'Preenche o nome.'; return; }
     if (!time){ $('#n-err').textContent = 'Indica a hora.'; return; }
     $('#n-create').disabled = true;
-    const ok = await createAdminBooking({ name, phone, service: svc, date, time, status });
+    const ok = await createAdminBooking({ name, phone, service: svc, date, time, status, duration });
     if (ok && isNewClient() && $('#n-save').checked){
       try { await sb.upsertClient({ phone: normPhone(phone), name, active: true }); adminClients.list = null; toast('Marcação criada · cliente adicionado à lista'); } catch(e){ console.warn(e); }
     }
+    if (ok && prefill && prefill.waitlistId){ try { await sb.waitlistDone(prefill.waitlistId); admin.waitCounts = null; } catch(e){} }
     if (ok){ closeSheet(); if (!$('#toast').classList.contains('show')) toast('Marcação criada'); renderAdmin(); } else { $('#n-create').disabled = false; $('#n-err').textContent = 'Erro ao criar. Tenta novamente.'; }
   };
   setTimeout(() => $('#n-name').focus(), 50);
