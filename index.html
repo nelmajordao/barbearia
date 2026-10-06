@@ -124,7 +124,7 @@
   .lunch{position:absolute;left:48px;right:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 10px,rgba(127,127,127,.06) 10px 20px)}
   .now{position:absolute;left:48px;right:0;height:2px;background:var(--accent);z-index:3}
   .after{position:absolute;left:48px;right:0;border-top:1px dashed var(--muted);padding:4px 8px;font-size:10px;letter-spacing:1px;color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 10px,rgba(255,255,255,.02) 10px 20px)}
-  .block{position:absolute;left:56px;right:0;border-radius:9px;padding:8px 10px 6px 14px;display:flex;flex-direction:column;justify-content:center;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:pointer;z-index:2}
+  .block{position:absolute;left:56px;right:0;border-radius:9px;padding:2px 10px 2px 14px;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:pointer;z-index:2}
   .block.pending{background:var(--pending-bg);border-left-color:var(--pending)}
   .block.confirmed{background:var(--confirmed-bg);border-left-color:var(--confirmed)}
   .block.dragging{box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:5;cursor:grabbing}
@@ -1001,7 +1001,7 @@ async function openWaitlist(date){
 }
 
 /* ---- Agenda ---- */
-const PX_PER_MIN = 1.15;
+const PX_PER_MIN = 2.2; // 15 min = 33 px (altura mínima legível); os blocos ficam à escala real
 function shiftISO(iso, delta){ const d = parseISO(iso); d.setDate(d.getDate()+delta); return isoOf(d); }
 
 function renderAgenda(body){
@@ -1025,8 +1025,8 @@ function renderAgenda(body){
     if (endMin > closeMin) after = `<div class="after" style="top:${(closeMin-startMin)*PX_PER_MIN}px;height:${(endMin-closeMin)*PX_PER_MIN}px">FORA DE HORÁRIO · SÓ ADMIN</div>`;
     let now = '';
     if (isToday){ const n = new Date(), nm = n.getHours()*60+n.getMinutes(); if (nm >= startMin && nm <= endMin) now = `<div class="now" style="top:${(nm-startMin)*PX_PER_MIN}px"></div>`; }
-    const blocks = dayB.map(b => { const dur = b.duration || svcDur(b.service), h = Math.max(34, dur*PX_PER_MIN);
-      return `<div class="block ${b.status}" data-id="${b.id}" style="top:${(timeToMin(b.time)-startMin)*PX_PER_MIN}px;height:${h}px"><div class="ln"><span class="tt">${b.time}</span><span class="nm">${esc(b.name)}</span><span class="t">${dur}min</span></div>${h > 52 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
+    const blocks = dayB.map(b => { const dur = b.duration || svcDur(b.service), h = Math.max(22, dur*PX_PER_MIN);
+      return `<div class="block ${b.status}" data-id="${b.id}" style="top:${(timeToMin(b.time)-startMin)*PX_PER_MIN}px;height:${h}px"><div class="ln"><span class="tt">${b.time}</span><span class="nm">${esc(b.name)}</span><span class="t">${dur}min</span></div>${h > 60 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
     grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${after}${blocks}${now}</div>`;
   }
 
