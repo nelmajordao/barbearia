@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0A0A0A">
-<title>Barbearia Capitão — Marcações</title>
+<title>O Meu Barbeiro — Marcações</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -241,14 +242,14 @@
 
   <!-- ===== CLIENTE ===== -->
   <section class="view active" id="v-client">
-    <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">MARCAÇÕES ONLINE</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
+    <div class="topbar"><div class="tb-left"><div class="brand js-brand">O MEU BARBEIRO</div><div class="brand-sub">MARCAÇÕES ONLINE</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img class="js-logo" src="logo.png" alt="Logótipo"></div></div></div>
     <div class="content" id="client-content"></div>
     <button class="bottom-link" onclick="auth.loggedIn ? enterAdmin() : show('login')">Acesso administrativo →</button>
   </section>
 
   <!-- ===== LOGIN ===== -->
   <section class="view" id="v-login">
-    <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
+    <div class="topbar"><div class="tb-left"><div class="brand js-brand">O MEU BARBEIRO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img class="js-logo" src="logo.png" alt="Logótipo"></div></div></div>
     <div class="content">
       <h2>Entrar</h2>
       <p class="lead">Área reservada à gestão da barbearia.</p>
@@ -264,7 +265,7 @@
 
   <!-- ===== ADMIN ===== -->
   <section class="view" id="v-admin">
-    <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
+    <div class="topbar"><div class="tb-left"><div class="brand js-brand">O MEU BARBEIRO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img class="js-logo" src="logo.png" alt="Logótipo"></div></div></div>
     <div class="content">
       <div class="between"><h2>Marcações</h2><button class="sm accent" onclick="openSettings()">⚙ Definições</button></div>
       <div class="tabs" id="tabs"></div>
@@ -275,7 +276,7 @@
 
   <!-- ===== DEFINIÇÕES ===== -->
   <section class="view" id="v-settings">
-    <div class="topbar"><div class="tb-left"><div class="brand">BARBEARIA CAPITÃO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img src="logo.png" alt="Barbearia Capitão"></div></div></div>
+    <div class="topbar"><div class="tb-left"><div class="brand js-brand">O MEU BARBEIRO</div><div class="brand-sub">PAINEL ADMINISTRATIVO</div></div><div class="tb-right"><button class="palette" onclick="openThemePicker()" title="Esquema de cores" aria-label="Escolher esquema de cores">◐</button><div class="logo"><img class="js-logo" src="logo.png" alt="Logótipo"></div></div></div>
     <div class="content" id="settings-content"></div>
   </section>
 </div>
@@ -423,17 +424,48 @@ async function rpc(name, args){
 }
 
 
+
+/* =========================================================
+   BARBEARIA ACTIVA (multi-barbearia)
+   ========================================================= */
+const PRODUCT_NAME = 'O Meu Barbeiro';
+const SITE_URL = location.origin;   // o link de cada barbearia é SITE_URL/<codigo>
+const shopState = {
+  current: null,                    // {id, slug, name, logo_url}
+  // o código vem do URL (/capitao, ?s=capitao, #capitao) ou do último usado
+  slugFromUrl(){
+    const q = new URLSearchParams(location.search).get('s'); if (q) return q.toLowerCase();
+    const h = location.hash.replace(/^#\/?/, ''); if (h && /^[a-z0-9-]+$/i.test(h)) return h.toLowerCase();
+    const seg = location.pathname.split('/').filter(Boolean)[0]; if (seg && /^[a-z0-9-]+$/i.test(seg) && !/\./.test(seg)) return seg.toLowerCase();
+    return null;
+  },
+  async load(slug){
+    if (!slug) return null;
+    try { const info = await rpc('shop_info', { p_slug: slug }); if (!info) return null; this.set(info); return info; } catch(e){ return null; }
+  },
+  set(info){ this.current = info; try { localStorage.setItem('shop_slug', info.slug); } catch(e){} applyBranding(); try { history.replaceState(null, '', '/' + info.slug + location.hash); } catch(e){} },
+  clear(){ this.current = null; try { localStorage.removeItem('shop_slug'); } catch(e){} applyBranding(); try { history.replaceState(null, '', '/'); } catch(e){} },
+  get slug(){ return this.current?.slug || null; },
+  get id(){ return this.current?.id || null; },
+};
+function applyBranding(){
+  const name = shopState.current?.name || PRODUCT_NAME, logo = shopState.current?.logo_url || 'logo.png';
+  document.querySelectorAll('.js-brand').forEach(e => e.textContent = name.toUpperCase());
+  document.querySelectorAll('.js-logo').forEach(e => { if (e.getAttribute('src') !== logo) e.setAttribute('src', logo); e.onerror = () => { e.onerror = null; e.src = 'logo.png'; }; });
+  document.title = `${name} — Marcações`;
+}
+
 /* =========================================================
    PUSH (Web) — admin e clientes
    ========================================================= */
 const push = {
   get available(){ return !!(window.fcm && window.fcm.supported); },
   async registerAdmin(){
-    if (!this.available || !auth.loggedIn) return;
+    if (!this.available || !auth.loggedIn || !shopState.id) return;
     try {
       const token = await window.fcm.getToken(); if (!token) return;
       const r = await fetch(`${REST}/admin_devices?on_conflict=token`, { method:'POST', headers:{...await hdrs(), Prefer:'resolution=merge-duplicates,return=minimal'},
-        body: JSON.stringify({ token, email: auth.session?.email || '', platform: 'web', updated_at: new Date().toISOString() }) });
+        body: JSON.stringify({ token, shop_id: shopState.id, email: auth.session?.email || '', platform: 'web', updated_at: new Date().toISOString() }) });
       if (!r.ok) console.warn('admin_devices', r.status);
     } catch(e){ console.warn('registerAdmin', e); }
   },
@@ -467,11 +499,16 @@ setInterval(async () => { if (auth.loggedIn && $('#v-admin').classList.contains(
 
 const sb = {
   /* público (anon) */
-  async getPublicSettings(){ const j = await rpc('public_settings'); return fromJsonSettings(j || {}); },
-  async getOccupancy(){ return (await rpc('public_occupancy')) || []; },
+  async getPublicSettings(){ const j = await rpc('public_settings', { p_slug: shopState.slug }); return fromJsonSettings(j || {}); },
+  async getOccupancy(){ return (await rpc('public_occupancy', { p_slug: shopState.slug })) || []; },
   /* cliente (conta) */
   clientStatus: phone => rpc('client_status', { p_phone: phone }),
-  clientEnter: phone => rpc('client_enter', { p_phone: phone }),
+  clientEnter: phone => rpc('client_enter', { p_slug: shopState.slug, p_phone: phone }),
+  shopInfo: slug => rpc('shop_info', { p_slug: slug }),
+  myShops: () => rpc('my_shops'),
+  createShop: (name, slug) => rpc('create_shop', { p_name: name, p_slug: slug }),
+  async updateShop(patch){ const r = await fetch(`${REST}/shops?id=eq.${shopState.id}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(patch) }); if (!r.ok) throw new Error('updateShop ' + r.status); },
+  async uploadLogo(file){ const ext = /png/.test(file.type) ? 'png' : 'jpg'; const path = `${shopState.id}/logo.${ext}`; const t = await auth.token(); const r = await fetch(`${SB_URL}/storage/v1/object/logos/${path}`, { method:'POST', headers:{ apikey: SB_KEY, Authorization: 'Bearer ' + t, 'Content-Type': file.type, 'x-upsert': 'true' }, body: file }); if (!r.ok) throw new Error('upload ' + r.status); return `${SB_URL}/storage/v1/object/public/logos/${path}?v=${Date.now()}`; },
   clientLogout: token => rpc('client_logout', { p_token: token }),
   clientMe: token => rpc('client_me', { p_token: token }),
   clientMyBookings: async token => (await rpc('client_my_bookings', { p_token: token })) || [],
@@ -482,33 +519,33 @@ const sb = {
   clientJoinWaitlist: (token, date, service) => rpc('client_join_waitlist', { p_token: token, p_date: date, p_service: service }),
   clientMyWaitlist: async token => (await rpc('client_my_waitlist', { p_token: token })) || [],
   clientLeaveWaitlist: (token, id) => rpc('client_leave_waitlist', { p_token: token, p_id: id }),
-  async getWaitlist(date){ const r = await fetch(`${REST}/waitlist?select=*&status=neq.done&date=eq.${date}&order=created_at.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('waitlist ' + r.status); return r.json(); },
-  async getWaitlistCounts(){ const r = await fetch(`${REST}/waitlist?select=date&status=neq.done&date=gte.${todayISO()}`, { headers: await hdrs() }); if (!r.ok) return {}; const out = {}; (await r.json()).forEach(w => { out[w.date] = (out[w.date] || 0) + 1; }); return out; },
+  async getWaitlist(date){ const r = await fetch(`${REST}/waitlist?select=*&shop_id=eq.${shopState.id}&status=neq.done&date=eq.${date}&order=created_at.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('waitlist ' + r.status); return r.json(); },
+  async getWaitlistCounts(){ const r = await fetch(`${REST}/waitlist?select=date&shop_id=eq.${shopState.id}&status=neq.done&date=gte.${todayISO()}`, { headers: await hdrs() }); if (!r.ok) return {}; const out = {}; (await r.json()).forEach(w => { out[w.date] = (out[w.date] || 0) + 1; }); return out; },
   async waitlistDone(id){ const r = await fetch(`${REST}/waitlist?id=eq.${id}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify({ status: 'done' }) }); if (!r.ok) throw new Error('waitlist ' + r.status); },
   async waitlistRemove(id){ const r = await fetch(`${REST}/waitlist?id=eq.${id}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('waitlist ' + r.status); },
-  loyaltyStatus: phone => rpc('loyalty_status', { p_phone: phone }),
+  loyaltyStatus: phone => rpc('admin_loyalty_status', { p_shop: shopState.id, p_phone: phone }),
   loyaltyToggle: id => rpc('loyalty_toggle_stamp', { p_booking_id: id }),
-  loyaltyRedeem: phone => rpc('loyalty_redeem', { p_phone: phone }),
+  loyaltyRedeem: phone => rpc('loyalty_redeem', { p_shop: shopState.id, p_phone: phone }),
   /* admin: clientes */
-  async getClients(){ const r = await fetch(`${REST}/clients?select=phone,name,active,created_at,last_login&order=name.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('getClients ' + r.status); return r.json(); },
-  async upsertClient(c){ const r = await fetch(`${REST}/clients?on_conflict=phone`, { method:'POST', headers:{...await hdrs(), Prefer:'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify(c) }); if (!r.ok) throw new Error('upsertClient ' + r.status); },
-  async updateClient(phone, patch){ const r = await fetch(`${REST}/clients?phone=eq.${encodeURIComponent(phone)}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(patch) }); if (!r.ok) throw new Error('updateClient ' + r.status); },
-  async deleteClient(phone){ const r = await fetch(`${REST}/clients?phone=eq.${encodeURIComponent(phone)}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('deleteClient ' + r.status); },
+  async getClients(){ const r = await fetch(`${REST}/clients?select=phone,name,active,created_at,last_login&shop_id=eq.${shopState.id}&order=name.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('getClients ' + r.status); return r.json(); },
+  async upsertClient(c){ const r = await fetch(`${REST}/clients?on_conflict=shop_id,phone`, { method:'POST', headers:{...await hdrs(), Prefer:'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify({ ...c, shop_id: shopState.id }) }); if (!r.ok) throw new Error('upsertClient ' + r.status); },
+  async updateClient(phone, patch){ const r = await fetch(`${REST}/clients?shop_id=eq.${shopState.id}&phone=eq.${encodeURIComponent(phone)}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(patch) }); if (!r.ok) throw new Error('updateClient ' + r.status); },
+  async deleteClient(phone){ const r = await fetch(`${REST}/clients?shop_id=eq.${shopState.id}&phone=eq.${encodeURIComponent(phone)}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('deleteClient ' + r.status); },
   /* admin (sessão) */
   async getBookings(){
-    const r = await fetch(`${REST}/bookings?select=*&order=date.asc,time.asc`, { headers: await hdrs() });
+    const r = await fetch(`${REST}/bookings?select=*&shop_id=eq.${shopState.id}&order=date.asc,time.asc`, { headers: await hdrs() });
     if (!r.ok) throw new Error('getBookings ' + r.status);
     return (await r.json()).filter(b => b.status !== 'deleted');
   },
   async getSettings(){
-    const r = await fetch(`${REST}/settings?id=eq.1&select=data`, { headers: await hdrs() });
+    const r = await fetch(`${REST}/shop_settings?shop_id=eq.${shopState.id}&select=data`, { headers: await hdrs() });
     if (r.ok){ const rows = await r.json(); if (rows.length && rows[0].data) return fromJsonSettings(rows[0].data); }
     throw new Error('getSettings ' + r.status);
   },
   async insert(b){ const r = await fetch(`${REST}/bookings`, { method:'POST', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(b) }); if (!r.ok) throw new Error('insert ' + r.status); },
   async update(b){ const r = await fetch(`${REST}/bookings?id=eq.${encodeURIComponent(b.id)}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(b) }); if (!r.ok) throw new Error('update ' + r.status); },
   async remove(id){ const r = await fetch(`${REST}/bookings?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('delete ' + r.status); },
-  async saveSettings(s){ const r = await fetch(`${REST}/settings?id=eq.1`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify({ data: toJsonSettings(s) }) }); if (!r.ok) throw new Error('saveSettings ' + r.status); },
+  async saveSettings(s){ const r = await fetch(`${REST}/shop_settings?shop_id=eq.${shopState.id}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify({ data: toJsonSettings(s) }) }); if (!r.ok) throw new Error('saveSettings ' + r.status); },
 };
 
 /* =========================================================
@@ -611,7 +648,7 @@ async function createAdminBooking({name, phone, service, date, time, status, dur
     await reload();
     const dup = state.bookings.some(b => b.status !== 'deleted' && b.date === date && b.time === time && b.service === service && normPhone(b.phone) === normPhone(phone));
     if (!dup){
-      const b = { id: genId(), code: genCode(), name, phone, service, date, time, duration: duration || svcDur(service), status, created_at: new Date().toISOString(), created_by: 'admin' };
+      const b = { id: genId(), shop_id: shopState.id, code: genCode(), name, phone, service, date, time, duration: duration || svcDur(service), status, created_at: new Date().toISOString(), created_by: 'admin' };
       await sb.insert(b); state.bookings.push(b);
     }
     return true;
@@ -702,19 +739,37 @@ async function loadMine(){ try { client.mine = await sb.clientMyBookings(cs.toke
 /* ---- Ecrã de entrada do cliente ---- */
 function renderGate(){
   const g = client.gate, el = $('#client-content');
+  if (!shopState.current){
+    el.innerHTML = `<div class="cols"><div class="col" style="max-width:480px;margin:0 auto">
+      <h2>A tua barbearia</h2>
+      <p class="lead">Introduz o código que a barbearia te deu (está no link ou no QR da loja).</p>
+      <label class="label" for="g-shop">Código da barbearia</label>
+      <input class="input mono" id="g-shop" placeholder="ex.: capitao" autocapitalize="none" autocomplete="off">
+      <div class="err">${g.err ? esc(g.err) : ''}</div>
+      <div style="margin-top:18px"><button class="btn" id="g-shop-go" ${g.busy ? 'disabled' : ''}>${g.busy ? 'A procurar…' : 'Continuar'}</button></div>
+      </div></div>`;
+    const go = async () => { const slug = $('#g-shop').value.trim().toLowerCase(); g.err = null; if (!slug){ g.err = 'Introduz o código da barbearia.'; return renderGate(); } g.busy = true; renderGate();
+      const info = await shopState.load(slug); g.busy = false; if (!info){ g.err = 'Não encontrámos nenhuma barbearia com esse código.'; return renderGate(); }
+      try { await reload(); state.settings = await sb.getPublicSettings(); } catch(e){} renderGate(); };
+    $('#g-shop-go').onclick = go; $('#g-shop').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    setTimeout(() => $('#g-shop')?.focus(), 30);
+    return;
+  }
   el.innerHTML = `<div class="cols"><div class="col" style="max-width:480px;margin:0 auto">
     <h2>Entrar</h2>
-    <p class="lead">Só clientes registados pela barbearia podem marcar. Introduz o teu número de telemóvel.</p>
+    <p class="lead">Só clientes registados pela ${esc(shopState.current.name)} podem marcar. Introduz o teu número de telemóvel.</p>
     <label class="label" for="g-phone">Telemóvel</label>
     <input class="input" id="g-phone" type="tel" placeholder="9xx xxx xxx" value="${esc(g.phone)}" autocomplete="tel">
     <div class="err">${g.err ? esc(g.err) : ''}</div>
     <div style="margin-top:18px"><button class="btn" id="g-go" ${g.busy ? 'disabled' : ''}>${g.busy ? 'A entrar…' : 'Entrar'}</button></div>
+    <div style="margin-top:10px"><button class="ghost" id="g-other">Outra barbearia</button></div>
     </div></div>`;
+  $('#g-other').onclick = () => { shopState.clear(); g.err = null; renderGate(); };
   const go = async () => {
     g.phone = $('#g-phone').value.trim(); g.err = null;
     if (!g.phone){ g.err = 'Introduz o teu número.'; return renderGate(); }
     g.busy = true; renderGate();
-    try { cs.set(await sb.clientEnter(g.phone)); await enterClient(); }
+    try { const j = await sb.clientEnter(g.phone); if (j.shop) shopState.set(j.shop); cs.set(j); await enterClient(); }
     catch(e){ g.err = e.message.replace(/^client_\w+ \d+$/, 'Erro de ligação. Tenta novamente.'); }
     finally { g.busy = false; if (!cs.loggedIn) renderGate(); }
   };
@@ -821,12 +876,56 @@ function renderClient(){
 /* =========================================================
    LOGIN
    ========================================================= */
+let myShops = [];
 async function enterAdmin(){
   admin.tab = 'pendentes'; admin.agendaDate = todayISO(); adminClients.list = null; admin.waitCounts = null;
+  try { myShops = (await sb.myShops()) || []; } catch(e){ await auth.signOut(); $('#login-err').textContent = 'Erro ao carregar as tuas barbearias.'; show('login'); return; }
+  if (!myShops.length){ renderShopSetup(); show('client'); return; }   // primeira entrada: criar barbearia
+  const remembered = (() => { try { return localStorage.getItem('admin_shop'); } catch(e){ return null; } })();
+  const pick = myShops.find(x => x.id === remembered) || myShops[0];
+  await selectShop(pick);
+}
+async function selectShop(shop){
+  shopState.set(shop); try { localStorage.setItem('admin_shop', shop.id); } catch(e){}
+  adminClients.list = null; admin.waitCounts = null;
   try { state.settings = await sb.getSettings(); state.bookings = await sb.getBookings(); }
-  catch(e){ await auth.signOut(); $('#login-err').textContent = 'Esta conta não tem permissões de administrador.'; show('login'); return; }
+  catch(e){ toast('Erro ao carregar a barbearia'); return; }
   renderAdmin(); show('admin');
   push.registerAdmin();
+}
+/* ---- resolve a barbearia do visitante (URL → última usada) e carrega os dados públicos ---- */
+async function restoreClientShop(){
+  const slug = shopState.slugFromUrl() || (() => { try { return localStorage.getItem('shop_slug'); } catch(e){ return null; } })();
+  if (slug) await shopState.load(slug);
+  applyBranding();
+  if (shopState.current){ try { state.settings = await sb.getPublicSettings(); state.occupancy = await sb.getOccupancy(); } catch(e){ console.error('init', e); } }
+}
+/* ---- Primeira entrada do barbeiro: criar a barbearia ---- */
+function slugify(t){ return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 31); }
+function renderShopSetup(){
+  const el = $('#client-content'); shopState.clear();
+  el.innerHTML = `<div class="cols"><div class="col" style="max-width:520px;margin:0 auto">
+    <h2>Configura a tua barbearia</h2>
+    <p class="lead">É a primeira vez que entras. Dá um nome à barbearia e escolhe o código que os clientes vão usar para te encontrar.</p>
+    <label class="label" for="ss-name">Nome da barbearia</label><input class="input" id="ss-name" placeholder="ex.: Barbearia Capitão">
+    <label class="label" for="ss-slug">Código (link para os clientes)</label><input class="input mono" id="ss-slug" placeholder="ex.: capitao">
+    <p class="lead" id="ss-hint" style="margin-top:6px">Os clientes entram em ${SITE_URL}/… ou escrevem o código na app. Não pode ser alterado depois.</p>
+    <div class="err" id="ss-err"></div>
+    <div style="margin-top:18px"><button class="btn" id="ss-create">Criar barbearia</button></div>
+    <div style="margin-top:10px"><button class="ghost" onclick="logout()">Terminar sessão</button></div>
+    <p class="lead" style="margin-top:14px">O logótipo, o horário e os serviços definem-se a seguir, nas Definições.</p>
+    </div></div>`;
+  let edited = false;
+  $('#ss-name').addEventListener('input', () => { if (!edited) $('#ss-slug').value = slugify($('#ss-name').value); $('#ss-hint').textContent = `Os clientes entram em ${SITE_URL}/${$('#ss-slug').value || '…'} ou escrevem o código na app. Não pode ser alterado depois.`; });
+  $('#ss-slug').addEventListener('input', () => { edited = true; $('#ss-slug').value = $('#ss-slug').value.toLowerCase().replace(/[^a-z0-9-]/g, ''); $('#ss-hint').textContent = `Os clientes entram em ${SITE_URL}/${$('#ss-slug').value || '…'} ou escrevem o código na app.`; });
+  $('#ss-create').onclick = async () => {
+    const name = $('#ss-name').value.trim(), slug = $('#ss-slug').value.trim(); $('#ss-err').textContent = '';
+    if (!name){ $('#ss-err').textContent = 'Indica o nome da barbearia.'; return; }
+    $('#ss-create').disabled = true;
+    try { await sb.createShop(name, slug); toast('Barbearia criada 🎉'); await enterAdmin(); }
+    catch(e){ $('#ss-err').textContent = e.message; $('#ss-create').disabled = false; }
+  };
+  setTimeout(() => $('#ss-name').focus(), 30);
 }
 async function tryLogin(){
   const btn = $('#login-btn'); btn.disabled = true; $('#login-err').textContent = '';
@@ -834,7 +933,7 @@ async function tryLogin(){
   catch(e){ $('#login-err').textContent = /invalid/i.test(e.message) ? 'Email ou palavra-passe incorretos.' : e.message; }
   finally { btn.disabled = false; }
 }
-async function logout(){ await push.unregisterAdmin(); await auth.signOut(); state.bookings = []; await reload(); show('client'); renderClient(); }
+async function logout(){ await push.unregisterAdmin(); await auth.signOut(); myShops = []; try { localStorage.removeItem('admin_shop'); } catch(e){} shopState.current = null; await restoreClientShop(); state.bookings = []; await reload(); show('client'); renderClient(); }
 $('#login-btn').onclick = tryLogin;
 $('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 
@@ -1159,6 +1258,24 @@ function renderSettings(){
   const d = draft, el = $('#settings-content');
   el.innerHTML = `
     <div class="between"><h2>Definições</h2><button class="sm" onclick="show('admin');renderAdmin()">← Voltar</button></div>
+    <span class="label">A minha barbearia</span>
+    <div class="row" style="align-items:center">
+      <label class="logo" style="width:64px;height:64px;flex:0 0 64px;cursor:pointer;margin:0" title="Mudar logótipo"><img class="js-logo" src="${shopState.current?.logo_url || 'logo.png'}" alt=""><input type="file" id="s-logo" accept="image/png,image/jpeg" style="display:none"></label>
+      <div style="flex:1"><input class="input" id="s-shop-name" placeholder="Nome da barbearia" value="${esc(shopState.current?.name || '')}"><div class="phone" id="s-logo-hint" style="margin-top:4px">Toca no círculo para mudar o logótipo.</div></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div class="in" style="padding:14px 16px">
+      <div style="font-weight:600">Código e link para os clientes</div>
+      <p class="lead" style="margin-top:4px">Os clientes escrevem o código na app ou abrem o link / lêem o QR. Imprime o QR e põe-no na loja.</p>
+      <div class="row" style="align-items:flex-start">
+        <div id="s-qr" style="flex:0 0 auto;background:#fff;padding:8px;border-radius:8px"></div>
+        <div style="flex:1;min-width:0">
+          <div class="phone">Código</div><div class="mono" style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent)">${esc(shopState.slug || '')}</div>
+          <div class="phone" style="margin-top:8px">Link</div><div style="font-family:var(--mono);font-size:12px;word-break:break-all">${SITE_URL}/${esc(shopState.slug || '')}</div>
+          <div style="margin-top:8px"><button class="sm" id="s-copy">Copiar link</button> <button class="sm" id="s-print">Imprimir QR</button></div>
+        </div>
+      </div>
+    </div></div>
+    ${myShops.length > 1 ? `<span class="label">Barbearia activa</span><div class="wrap">${myShops.map(x => `<button class="chip ${x.id === shopState.id ? 'on' : ''}" data-shop="${x.id}">${esc(x.name)}</button>`).join('')}</div>` : ''}
     <span class="label">Dias de trabalho</span>
     <div class="wrap">${[1,2,3,4,5,6,0].map(n => `<button class="chip ${d.workingDays.includes(n) ? 'on' : ''}" data-dow="${n}">${DOW[n]}</button>`).join('')}</div>
     <span class="label">Horário de funcionamento</span>
@@ -1205,6 +1322,14 @@ function renderSettings(){
   el.querySelectorAll('[data-dow]').forEach(b => b.onclick = () => { sync(); const n = +b.dataset.dow; d.workingDays.includes(n) ? d.workingDays = d.workingDays.filter(x => x !== n) : d.workingDays.push(n); renderSettings(); });
   $('#s-lunch').onclick = () => { sync(); d.lunchEnabled = !d.lunchEnabled; renderSettings(); };
   $('#s-loy').onclick = () => { sync(); d.loyalty.enabled = !d.loyalty.enabled; renderSettings(); };
+  // barbearia: nome, logótipo, QR, troca
+  const link = `${SITE_URL}/${shopState.slug}`;
+  try { $('#s-qr').innerHTML = ''; new QRCode($('#s-qr'), { text: link, width: 120, height: 120, correctLevel: QRCode.CorrectLevel.M }); } catch(e){ $('#s-qr').textContent = link; }
+  $('#s-copy').onclick = () => { navigator.clipboard?.writeText(link); toast('Link copiado'); };
+  $('#s-print').onclick = () => { const w = window.open('', '_blank'); const img = $('#s-qr canvas')?.toDataURL() || ''; w.document.write(`<html><body style="font-family:sans-serif;text-align:center;padding:40px"><h1>${esc(shopState.current.name)}</h1><p style="font-size:20px">Marca o teu corte na app <b>${PRODUCT_NAME}</b></p><img src="${img}" style="width:320px;height:320px"><p style="font-size:26px;font-family:monospace">código: <b>${esc(shopState.slug)}</b></p><p>${link}</p></body></html>`); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); };
+  $('#s-shop-name').addEventListener('change', async () => { const n = $('#s-shop-name').value.trim(); if (!n || n === shopState.current.name) return; try { await sb.updateShop({ name: n }); shopState.set({ ...shopState.current, name: n }); myShops = myShops.map(x => x.id === shopState.id ? { ...x, name: n } : x); toast('Nome actualizado'); } catch(e){ toast('Erro ao guardar'); } });
+  $('#s-logo').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; if (f.size > 2*1024*1024){ toast('Imagem demasiado grande (máx. 2 MB)'); return; } $('#s-logo-hint').textContent = 'A enviar…'; try { const url = await sb.uploadLogo(f); await sb.updateShop({ logo_url: url }); shopState.set({ ...shopState.current, logo_url: url }); toast('Logótipo actualizado'); } catch(err){ toast('Erro ao enviar o logótipo'); } $('#s-logo-hint').textContent = 'Toca no círculo para mudar o logótipo.'; });
+  el.querySelectorAll('[data-shop]').forEach(b => b.onclick = async () => { const sh = myShops.find(x => x.id === b.dataset.shop); if (sh) await selectShop(sh); });
   $('#s-ov-add').onclick = () => {
     sync(); const dt = $('#s-ov-date').value, a = $('#s-ov-start').value, z = $('#s-ov-end').value, b1 = $('#s-ov-b1').value, b2 = $('#s-ov-b2').value;
     if (!dt) return toast('Escolhe um dia');
@@ -1243,12 +1368,11 @@ function renderSettings(){
   $('#client-content').innerHTML = '<div class="loading">a carregar…</div>';
   auth.load();
   window.addEventListener('fcm-ready', () => { if (auth.loggedIn && Notification.permission === 'granted') push.registerAdmin(); }, { once: true });
-  try { state.settings = await sb.getPublicSettings(); state.occupancy = await sb.getOccupancy(); }
-  catch(e){ console.error('init', e); }
+  await restoreClientShop();
   state.loading = false;
   client.service = firstSvc();
   cs.load();
-  if (cs.loggedIn){ try { const me = await sb.clientMe(cs.token); cs.set({ token: cs.token, ...me }); await loadMine(); } catch(e){ cs.clear(); } }
+  if (cs.loggedIn){ try { const me = await sb.clientMe(cs.token); if (me.shop) shopState.set(me.shop); cs.set({ token: cs.token, name: me.name, phone: me.phone }); await loadMine(); } catch(e){ cs.clear(); } }
   renderClient();
 })();
 </script>
