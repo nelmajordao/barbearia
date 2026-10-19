@@ -115,7 +115,7 @@
   .wait-banner span{color:var(--accent)}
   .closed-banner{margin:0 0 14px;padding:14px 16px;border-radius:12px;background:#8B2E2E;color:#fff;text-align:center;font-family:var(--display);font-size:22px;letter-spacing:2px;box-shadow:0 4px 18px rgba(139,46,46,.45)}
   .closed-banner small{display:block;font-family:var(--sans);font-size:12px;letter-spacing:0;font-weight:500;opacity:.9;margin-top:2px}
-  .agenda-head h3{flex:1;text-align:center;font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:.5px}
+  .agenda-head h3{flex:1;text-align:center;font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:.5px;position:relative}
   .agenda-count{text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted2);margin:10px 0 16px}
   .hint{font-size:11px;color:var(--muted2);line-height:1.4;margin:8px 0 14px}
   .grid{position:relative;user-select:none;touch-action:pan-y}
@@ -131,6 +131,8 @@
   .block.confirmed{background:var(--confirmed-bg);border-left-color:var(--confirmed)}
   .block.dragging{box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:5;cursor:grabbing}
   .block .ln{display:flex;align-items:baseline;gap:8px;min-width:0}
+  .block.past{opacity:.45;filter:saturate(.3)}
+  .block.past .nm{text-decoration:none}
   .block.narrow .ln{flex-wrap:wrap;gap:2px 6px}
   .block.narrow .t,.block.narrow .sv{display:none}
   .block.narrow .nm{flex-basis:100%;font-size:13px}
@@ -1144,12 +1146,13 @@ function renderAgenda(body){
       cluster.forEach(x => layout.set(x.id, { col: assigned.get(x.id), cols: colEnd.length })); cluster = []; clusterEnd = -1; };
     sorted.forEach(x => { if (cluster.length && startOf(x) >= clusterEnd) flush(); cluster.push(x); clusterEnd = Math.max(clusterEnd, endOf(x)); }); flush();
     const blocks = dayB.map(b => { const dur = b.duration || svcDur(b.service), h = Math.max(22, dur*PX_PER_MIN); const L = layout.get(b.id) || { col: 0, cols: 1 }; const wPct = 100 / L.cols, leftPct = wPct * L.col;
-      return `<div class="block ${b.status} ${L.cols > 1 ? 'narrow' : ''}" data-id="${b.id}" style="top:${(timeToMin(b.time)-gs)*PX_PER_MIN}px;height:${h}px;${L.cols > 1 ? `left:calc(var(--bl,56px) + (100% - var(--bl,56px)) * ${leftPct/100} + ${L.col ? 3 : 0}px);width:calc((100% - var(--bl,56px)) * ${wPct/100} - ${L.col ? 3 : 0}px);right:auto;` : ''}"><div class="ln"><span class="tt">${b.time}</span><span class="nm">${esc(b.name)}</span><span class="t">${dur}min</span></div>${h > 60 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
+      const nowM = new Date(), isPast = b.date < todayISO() || (b.date === todayISO() && (timeToMin(b.time) + dur) <= nowM.getHours()*60 + nowM.getMinutes());
+      return `<div class="block ${b.status} ${L.cols > 1 ? 'narrow' : ''} ${isPast ? 'past' : ''}" data-id="${b.id}" style="top:${(timeToMin(b.time)-gs)*PX_PER_MIN}px;height:${h}px;${L.cols > 1 ? `left:calc(var(--bl,56px) + (100% - var(--bl,56px)) * ${leftPct/100} + ${L.col ? 3 : 0}px);width:calc((100% - var(--bl,56px)) * ${wPct/100} - ${L.col ? 3 : 0}px);right:auto;` : ''}"><div class="ln"><span class="tt">${b.time}</span><span class="nm">${esc(b.name)}</span><span class="t">${dur}min</span></div>${h > 60 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
     grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${after}${blocks}${now}</div>`;
   }
 
   body.innerHTML = `<div class="agenda-wrap">
-    <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3>${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''}</h3><button class="sm ${isToday ? '' : 'accent'}" id="ag-today" title="Ir para hoje" ${isToday ? 'disabled style="opacity:.4"' : ''}>Hoje</button><button class="sm" id="ag-next">▶</button></div>
+    <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3 title="Escolher dia">${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''} <span style="font-size:12px;opacity:.6">▾</span><input type="date" id="ag-pick" value="${date}" min="${shiftISO(todayISO(), -365)}" max="${shiftISO(todayISO(), 366)}" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none"></h3><button class="sm ${isToday ? '' : 'accent'}" id="ag-today" title="Ir para hoje" ${isToday ? 'disabled style="opacity:.4"' : ''}>Hoje</button><button class="sm" id="ag-next">▶</button></div>
     <div class="agenda-count">${dayB.length} marcaç${dayB.length === 1 ? 'ão' : 'ões'}${pend ? ` · ${pend} pendente${pend > 1 ? 's' : ''}` : ''}</div>
     ${isClosedDay(date) ? `<div class="closed-banner">🔒 FECHADO<small>feriado / encerramento — só o administrador pode marcar</small></div>` : ''}
     ${hoursFor(date).special ? `<div class="hint" style="text-align:center;margin:-6px 0 12px;color:var(--accent);font-weight:600">⏰ Horário especial: ${hoursFor(date).start}–${hoursFor(date).end}${hoursFor(date).breaks.map(br => ` · pausa ${br.start}–${br.end}`).join('')}</div>` : ''}
@@ -1163,7 +1166,9 @@ function renderAgenda(body){
   $('#ag-today').onclick = () => { admin.agendaDate = todayISO(); renderAdmin(); };
   const wbtn = $('#ag-wait'); if (wbtn) wbtn.onclick = () => openWaitlist(date);
   if (!admin.waitCounts){ sb.getWaitlistCounts().then(c => { admin.waitCounts = c; if (c[date]) renderAdmin(); }).catch(() => { admin.waitCounts = {}; }); }
-  $('.agenda-head h3').onclick = () => { admin.agendaDate = todayISO(); renderAdmin(); }; $('.agenda-head h3').style.cursor = 'pointer';
+  const pick = $('#ag-pick');
+  $('.agenda-head h3').onclick = () => { try { pick.showPicker(); } catch(e){ pick.focus(); pick.click(); } }; $('.agenda-head h3').style.cursor = 'pointer';
+  pick.onchange = () => { if (pick.value){ admin.agendaDate = pick.value; renderAdmin(); } };
   $('#ag-next').onclick = () => { admin.agendaDate = shiftISO(date, 1); renderAdmin(); };
   $('#ag-new').onclick = () => openNewBooking(date);
   const clr = $('#ag-clear'); if (clr) clr.onclick = async () => { if (await confirmDialog('Apagar marcações passadas?','Esta ação é irreversível.','Sim, apagar')){ await clearPast(); toast('Apagadas'); renderAdmin(); } };
