@@ -126,7 +126,7 @@
   .now{position:absolute;left:48px;right:0;height:2px;background:var(--accent);z-index:3}
   .after{position:absolute;left:48px;right:0;border-top:1px dashed var(--muted);padding:0;font-size:10px;letter-spacing:1px;color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 10px,rgba(255,255,255,.02) 10px 20px)}
   .band-tag{position:absolute;right:6px;top:3px;z-index:4;pointer-events:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 7px;font-size:9px;letter-spacing:1px;color:var(--muted);white-space:nowrap}
-  .block{position:absolute;left:56px;right:0;border-radius:9px;padding:2px 10px 2px 14px;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:pointer;z-index:2}
+  .block{position:absolute;left:var(--bl,56px);right:0;border-radius:9px;padding:2px 10px 2px 14px;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;border:1px solid var(--border);border-left-width:3px;overflow:hidden;cursor:pointer;z-index:2}
   .block.pending{background:var(--pending-bg);border-left-color:var(--pending)}
   .block.confirmed{background:var(--confirmed-bg);border-left-color:var(--confirmed)}
   .block.dragging{box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:5;cursor:grabbing}
@@ -225,7 +225,7 @@
     .grid3{grid-template-columns:repeat(5,1fr)}
     .days{flex-wrap:wrap;overflow:visible}
     .day{flex:0 0 64px}
-    .block{left:64px}
+    .grid{--bl:64px}
     .hline span{width:50px}
     .lunch,.now{left:56px}
     #v-login .content{max-width:560px;margin:0 auto;width:100%}
@@ -1144,7 +1144,7 @@ function renderAgenda(body){
       cluster.forEach(x => layout.set(x.id, { col: assigned.get(x.id), cols: colEnd.length })); cluster = []; clusterEnd = -1; };
     sorted.forEach(x => { if (cluster.length && startOf(x) >= clusterEnd) flush(); cluster.push(x); clusterEnd = Math.max(clusterEnd, endOf(x)); }); flush();
     const blocks = dayB.map(b => { const dur = b.duration || svcDur(b.service), h = Math.max(22, dur*PX_PER_MIN); const L = layout.get(b.id) || { col: 0, cols: 1 }; const wPct = 100 / L.cols, leftPct = wPct * L.col;
-      return `<div class="block ${b.status} ${L.cols > 1 ? 'narrow' : ''}" data-id="${b.id}" style="top:${(timeToMin(b.time)-gs)*PX_PER_MIN}px;height:${h}px;${L.cols > 1 ? `left:calc(56px + (100% - 56px) * ${leftPct/100} + ${L.col ? 3 : 0}px);width:calc((100% - 56px) * ${wPct/100} - ${L.col ? 3 : 0}px);right:auto;` : ''}"><div class="ln"><span class="tt">${b.time}</span><span class="nm">${esc(b.name)}</span><span class="t">${dur}min</span></div>${h > 60 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
+      return `<div class="block ${b.status} ${L.cols > 1 ? 'narrow' : ''}" data-id="${b.id}" style="top:${(timeToMin(b.time)-gs)*PX_PER_MIN}px;height:${h}px;${L.cols > 1 ? `left:calc(var(--bl,56px) + (100% - var(--bl,56px)) * ${leftPct/100} + ${L.col ? 3 : 0}px);width:calc((100% - var(--bl,56px)) * ${wPct/100} - ${L.col ? 3 : 0}px);right:auto;` : ''}"><div class="ln"><span class="tt">${b.time}</span><span class="nm">${esc(b.name)}</span><span class="t">${dur}min</span></div>${h > 60 ? `<div class="sv">${esc(svcLabel(b.service))}</div>` : ''}</div>`; }).join('');
     grid = `<div class="grid" id="grid" style="height:${totalH}px">${lines}${lunch}${after}${blocks}${now}</div>`;
   }
 
