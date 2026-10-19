@@ -189,6 +189,13 @@
   .ac-item:first-child{border-top:0}
   .ac-item:hover{background:var(--accent-dim)}
   .ac-item span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  /* ---- Seletor de data ---- */
+  .dp-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .dp-h{text-align:center;font-size:11px;color:var(--muted2);padding:4px 0}
+  .dp-d{height:36px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px}
+  .dp-d.off{opacity:.4}
+  .dp-d.today{border-color:var(--accent)}
+  .dp-d.on{background:var(--accent);color:var(--btn-fg);border-color:var(--accent);font-weight:600}
   /* ---- Lista agrupada por dia ---- */
   .day-group{margin-bottom:10px}
   .day-head{position:sticky;top:0;z-index:4;width:100%;display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;row-gap:2px;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);text-align:left}
@@ -1092,6 +1099,28 @@ async function renderClients(body){
 }
 
 
+
+/* ---- Seletor de data da agenda: só o ano actual e o próximo ---- */
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function openDatePicker(current){
+  const cur = parseISO(current), thisYear = new Date().getFullYear();
+  const st = { y: Math.min(Math.max(cur.getFullYear(), thisYear), thisYear + 1), m: cur.getMonth() };
+  const render = () => {
+    const first = new Date(st.y, st.m, 1), days = new Date(st.y, st.m + 1, 0).getDate(), offset = (first.getDay() + 6) % 7; // segunda = 0
+    const cells = [...Array(offset).fill(''), ...Array.from({ length: days }, (_, i) => i + 1)];
+    openSheet(`<h2 class="small">Ir para o dia</h2>
+      <div class="row" style="margin-top:12px">${[thisYear, thisYear + 1].map(y => `<button class="pill ${y === st.y ? 'on' : ''}" data-y="${y}" style="padding:10px">${y}</button>`).join('')}</div>
+      <div class="grid3" style="grid-template-columns:repeat(4,1fr);margin-top:10px">${MESES.map((n, i) => `<button class="chip ${i === st.m ? 'on' : ''}" data-m="${i}" style="text-align:center">${n}</button>`).join('')}</div>
+      <div class="dp-days" style="margin-top:12px">${['S','T','Q','Q','S','S','D'].map(d => `<span class="dp-h">${d}</span>`).join('')}
+        ${cells.map(d => { if (!d) return '<span></span>'; const iso = `${st.y}-${pad(st.m+1)}-${pad(d)}`; const closed = isClosedDay(iso) || !state.settings.workingDays.includes(new Date(st.y, st.m, d).getDay()); return `<button class="dp-d ${iso === current ? 'on' : ''} ${iso === todayISO() ? 'today' : ''} ${closed ? 'off' : ''}" data-d="${iso}">${d}</button>`; }).join('')}</div>
+      <button class="ghost" style="border:0;margin-top:12px" onclick="closeSheet()">Fechar</button>`);
+    $('#sheet').querySelectorAll('[data-y]').forEach(b => b.onclick = () => { st.y = +b.dataset.y; render(); });
+    $('#sheet').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { st.m = +b.dataset.m; render(); });
+    $('#sheet').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { admin.agendaDate = b.dataset.d; closeSheet(); renderAdmin(); });
+  };
+  render();
+}
+
 /* ---- Lista de espera (admin) ---- */
 async function openWaitlist(date){
   let list = []; try { list = await sb.getWaitlist(date); } catch(e){ toast('Erro a carregar'); return; }
@@ -1152,7 +1181,7 @@ function renderAgenda(body){
   }
 
   body.innerHTML = `<div class="agenda-wrap">
-    <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3 title="Escolher dia">${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''} <span style="font-size:12px;opacity:.6">▾</span><input type="date" id="ag-pick" value="${date}" min="${new Date().getFullYear()}-01-01" max="${new Date().getFullYear()+1}-12-31" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none"></h3><button class="sm ${isToday ? '' : 'accent'}" id="ag-today" title="Ir para hoje" ${isToday ? 'disabled style="opacity:.4"' : ''}>Hoje</button><button class="sm" id="ag-next">▶</button></div>
+    <div class="agenda-head"><button class="sm" id="ag-prev">◀</button><h3 title="Escolher dia">${DOW[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}${isToday ? ' · hoje' : ''} <span style="font-size:12px;opacity:.6">▾</span></h3><button class="sm ${isToday ? '' : 'accent'}" id="ag-today" title="Ir para hoje" ${isToday ? 'disabled style="opacity:.4"' : ''}>Hoje</button><button class="sm" id="ag-next">▶</button></div>
     <div class="agenda-count">${dayB.length} marcaç${dayB.length === 1 ? 'ão' : 'ões'}${pend ? ` · ${pend} pendente${pend > 1 ? 's' : ''}` : ''}</div>
     ${isClosedDay(date) ? `<div class="closed-banner">🔒 FECHADO<small>feriado / encerramento — só o administrador pode marcar</small></div>` : ''}
     ${hoursFor(date).special ? `<div class="hint" style="text-align:center;margin:-6px 0 12px;color:var(--accent);font-weight:600">⏰ Horário especial: ${hoursFor(date).start}–${hoursFor(date).end}${hoursFor(date).breaks.map(br => ` · pausa ${br.start}–${br.end}`).join('')}</div>` : ''}
@@ -1166,9 +1195,7 @@ function renderAgenda(body){
   $('#ag-today').onclick = () => { admin.agendaDate = todayISO(); renderAdmin(); };
   const wbtn = $('#ag-wait'); if (wbtn) wbtn.onclick = () => openWaitlist(date);
   if (!admin.waitCounts){ sb.getWaitlistCounts().then(c => { admin.waitCounts = c; if (c[date]) renderAdmin(); }).catch(() => { admin.waitCounts = {}; }); }
-  const pick = $('#ag-pick');
-  $('.agenda-head h3').onclick = () => { try { pick.showPicker(); } catch(e){ pick.focus(); pick.click(); } }; $('.agenda-head h3').style.cursor = 'pointer';
-  pick.onchange = () => { if (pick.value){ admin.agendaDate = pick.value; renderAdmin(); } };
+  $('.agenda-head h3').onclick = () => openDatePicker(date); $('.agenda-head h3').style.cursor = 'pointer';
   $('#ag-next').onclick = () => { admin.agendaDate = shiftISO(date, 1); renderAdmin(); };
   $('#ag-new').onclick = () => openNewBooking(date);
   const clr = $('#ag-clear'); if (clr) clr.onclick = async () => { if (await confirmDialog('Apagar marcações passadas?','Esta ação é irreversível.','Sim, apagar')){ await clearPast(); toast('Apagadas'); renderAdmin(); } };
