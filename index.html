@@ -178,6 +178,9 @@
   .loy-bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
   .loy-foot{margin-top:8px;font-size:12px;color:var(--muted)}
   .loy-foot b{color:var(--text)}
+  .stepper{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .stepper b{font-family:var(--mono);font-size:16px;color:var(--text);min-width:18px;text-align:center}
+  .stepper small{color:var(--muted2)}
   .loy-mini{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--accent);margin-left:8px}
   .loy-mini i{display:inline-block;width:46px;height:5px;border-radius:3px;background:var(--surface2);overflow:hidden;vertical-align:middle}
   .loy-mini i b{display:block;height:100%;background:var(--accent)}
@@ -537,9 +540,10 @@ const sb = {
   async waitlistRemove(id){ const r = await fetch(`${REST}/waitlist?id=eq.${id}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('waitlist ' + r.status); },
   loyaltyStatus: phone => rpc('admin_loyalty_status', { p_shop: shopState.id, p_phone: phone }),
   loyaltyToggle: id => rpc('loyalty_toggle_stamp', { p_booking_id: id }),
+  loyaltySetStamps: (id, qty) => rpc('loyalty_set_stamps', { p_booking_id: id, p_qty: qty }),
   loyaltyRedeem: phone => rpc('loyalty_redeem', { p_shop: shopState.id, p_phone: phone }),
   /* admin: clientes */
-  async getClients(){ const r = await fetch(`${REST}/clients?select=phone,name,active,created_at,last_login&shop_id=eq.${shopState.id}&order=name.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('getClients ' + r.status); return r.json(); },
+  async getClients(){ const r = await fetch(`${REST}/clients?select=phone,name,active,max_stamps,created_at,last_login&shop_id=eq.${shopState.id}&order=name.asc`, { headers: await hdrs() }); if (!r.ok) throw new Error('getClients ' + r.status); return r.json(); },
   async upsertClient(c){ const r = await fetch(`${REST}/clients?on_conflict=shop_id,phone`, { method:'POST', headers:{...await hdrs(), Prefer:'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify({ ...c, shop_id: shopState.id }) }); if (!r.ok) throw new Error('upsertClient ' + r.status); },
   async updateClient(phone, patch){ const r = await fetch(`${REST}/clients?shop_id=eq.${shopState.id}&phone=eq.${encodeURIComponent(phone)}`, { method:'PATCH', headers:{...await hdrs(), Prefer:'return=minimal'}, body: JSON.stringify(patch) }); if (!r.ok) throw new Error('updateClient ' + r.status); },
   async deleteClient(phone){ const r = await fetch(`${REST}/clients?shop_id=eq.${shopState.id}&phone=eq.${encodeURIComponent(phone)}`, { method:'DELETE', headers:{...await hdrs(), Prefer:'return=minimal'} }); if (!r.ok) throw new Error('deleteClient ' + r.status); },
@@ -1067,6 +1071,7 @@ async function renderClients(body){
         </div>
         <div class="brow-more" style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="sm" data-act="rename">Renomear</button>
+          ${state.settings.loyalty.enabled ? `<span class="hint" style="margin:0;display:inline-flex;align-items:center;gap:4px">selos/marcação ${[1,2,3].map(n => `<button class="sm ${(c.max_stamps || 1) === n ? 'accent' : ''}" data-ms="${n}" style="padding:5px 9px">${n}</button>`).join('')}</span>` : ''}
           <button class="sm ${blocked ? '' : 'danger'}" data-act="block">${blocked ? 'Desbloquear' : 'Bloquear marcações'}</button>
           <button class="sm" data-act="toggle">${c.active ? 'Desactivar' : 'Reactivar'}</button>
           <button class="sm danger" data-act="delete">Eliminar</button>
@@ -1085,6 +1090,7 @@ async function renderClients(body){
   };
   body.querySelectorAll('.brow').forEach(row => {
     const phone = row.dataset.phone, c = ac.list.find(x => x.phone === phone);
+    row.querySelectorAll('[data-ms]').forEach(btn => btn.onclick = async () => { try { await sb.updateClient(phone, { max_stamps: +btn.dataset.ms }); ac.list = null; toast(`${btn.dataset.ms} selo(s) por marcação`); } catch(e){ toast('Erro'); } renderClients(body); });
     row.querySelectorAll('[data-act]').forEach(btn => btn.onclick = async () => {
       const act = btn.dataset.act;
       try {
@@ -1227,14 +1233,19 @@ async function openDetail(b){
   let st = null; if (state.settings.loyalty.enabled && normPhone(b.phone)) { try { st = await sb.loyaltyStatus(b.phone); } catch(e){} }
   const stamped = st && (st.stamped || []).includes(b.id);
   const stampedOld = st && !stamped && (st.stamped_all || []).includes(b.id); // carimbo de um cartão já resgatado
+  const maxQ = st ? (st.max_per_booking || 1) : 1, curQ = st && st.stamped_qty ? (st.stamped_qty[b.id] || 0) : (stamped ? 1 : 0);
   const loyHtml = st ? loyaltyCardHtml(st, { actions: `<div class="row" style="margin-top:10px">
       ${stampedOld ? `<span class="hint" style="margin:0">✓ Carimbada num cartão anterior (já resgatado).</span>`
+        : canStamp && maxQ > 1 ? `<div class="stepper"><span>✂ Selos nesta marcação</span><button class="sm" id="d-minus" ${curQ <= 0 ? 'disabled' : ''}>−</button><b>${curQ}</b><button class="sm accent" id="d-plus" ${curQ >= maxQ ? 'disabled' : ''}>+</button><small>máx. ${maxQ}</small></div>`
         : canStamp ? `<button class="sm ${stamped ? '' : 'accent'}" id="d-stamp">${stamped ? '✓ Carimbada · retirar' : '✂ Carimbar esta marcação'}</button>` : `<span class="hint" style="margin:0">${b.status !== 'confirmed' ? 'Carimba depois de confirmar.' : ''}</span>`}
       ${st.stamps >= st.total ? `<button class="sm accent" id="d-redeem">🎁 Resgatar ${esc(st.reward)}</button>` : ''}</div>` }) : '';
   openSheet(`<div class="code">${esc(b.code)}</div><div class="name" style="font-size:24px">${esc(b.name)}</div><div class="phone">${esc(b.phone) || "sem telemóvel"}</div>${badge(b.status)}<div class="divider"></div>${fields(b)}
     ${loyHtml}
     <div class="row" style="margin-top:16px">${b.status === 'pending' ? '<button class="ghost" id="d-confirm" style="border-color:rgba(201,161,74,.4);color:var(--accent)">Confirmar</button>' : ''}<button class="ghost" id="d-edit">Editar</button><button class="ghost danger" id="d-delete">Eliminar</button></div>
     <button class="ghost" style="border:0;margin-top:8px" onclick="closeSheet()">Fechar</button>`);
+  const setQ = async q => { try { const r = await sb.loyaltySetStamps(b.id, q); toast(r.stamps >= r.total ? 'Cartão completo! 🎉' : `${q} selo${q === 1 ? '' : 's'} · ${r.stamps}/${r.total}`); openDetail(b); } catch(e){ toast(e.message); } };
+  const mb = $('#d-minus'); if (mb) mb.onclick = () => setQ(curQ - 1);
+  const pb2 = $('#d-plus'); if (pb2) pb2.onclick = () => setQ(curQ + 1);
   const stampBtn = $('#d-stamp'); if (stampBtn) stampBtn.onclick = async () => { stampBtn.disabled = true; try { const r = await sb.loyaltyToggle(b.id); toast(stamped ? 'Carimbo retirado' : (r.stamps >= r.total ? 'Cartão completo! 🎉' : `Carimbo ${r.stamps}/${r.total}`)); openDetail(b); } catch(e){ toast(e.message); stampBtn.disabled = false; } };
   const redeemBtn = $('#d-redeem'); if (redeemBtn) redeemBtn.onclick = async () => { if (!(await confirmDialog(`Resgatar "${st.reward}"?`, `O cartão de ${b.name} volta a zero e começa outro.`, 'Sim, resgatar'))) return; try { await sb.loyaltyRedeem(b.phone); toast('Prémio resgatado 🎁'); openDetail(b); } catch(e){ toast(e.message); } };
   const c = $('#d-confirm'); if (c) c.onclick = async () => { await confirmBooking(b.id); closeSheet(); toast('Confirmada'); renderAdmin(); };
