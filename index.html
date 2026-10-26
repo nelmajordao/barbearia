@@ -894,7 +894,7 @@ function renderClient(){
    ========================================================= */
 let myShops = [];
 async function enterAdmin(){
-  admin.tab = 'pendentes'; admin.agendaDate = todayISO(); adminClients.list = null; admin.waitCounts = null;
+  admin.tab = 'agenda'; admin.agendaDate = todayISO(); adminClients.list = null; admin.waitCounts = null;
   try { myShops = (await sb.myShops()) || []; } catch(e){ await auth.signOut(); $('#login-err').textContent = 'Erro ao carregar as tuas barbearias.'; show('login'); return; }
   if (!myShops.length){ renderShopSetup(); show('client'); return; }   // primeira entrada: criar barbearia
   const remembered = (() => { try { return localStorage.getItem('admin_shop'); } catch(e){ return null; } })();
@@ -956,8 +956,8 @@ $('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin();
 /* =========================================================
    ADMIN
    ========================================================= */
-const admin = { tab: 'pendentes', agendaDate: todayISO(), expanded: null, openDays: new Set(), closedDays: new Set(), waitCounts: null };
-const TABS = { pendentes:'Pendentes', confirmadas:'Confirmadas', todas:'Todas', agenda:'Agenda', clientes:'Clientes' };
+const admin = { tab: 'agenda', agendaDate: todayISO(), expanded: null, openDays: new Set(), closedDays: new Set(), waitCounts: null };
+const TABS = { agenda:'Agenda', clientes:'Clientes', todas:'Todas', confirmadas:'Confirmadas', pendentes:'Pendentes' };
 
 function renderAdmin(){
   $('#tabs').innerHTML = Object.entries(TABS).map(([k,v]) => `<button class="tab ${admin.tab === k ? 'on' : ''}" data-tab="${k}">${v}</button>`).join('');
@@ -1064,17 +1064,19 @@ async function renderClients(body){
     <input class="input" id="nc-q" placeholder="Procurar por nome ou número" value="${esc(ac.q)}" style="margin-bottom:10px">
     <div class="rows" style="border-top:1px solid var(--border);border-radius:10px">
       ${list.length ? list.map(c => { const blocked = state.settings.blacklist.includes(c.phone); return `<div class="brow ${!c.active ? '' : blocked ? 'pending' : 'confirmed'}" data-phone="${esc(c.phone)}">
-        <div class="brow-main" style="cursor:default">
-          <span class="br-name" style="${c.active ? '' : 'text-decoration:line-through;opacity:.6'}">${esc(c.name)}${state.settings.loyalty.enabled && adminClients.loy && adminClients.loy[c.phone] ? `<span class="loy-mini" title="${esc(state.settings.loyalty.name)}">✂ ${adminClients.loy[c.phone].stamps}/${adminClients.loy[c.phone].total}<i><b style="width:${Math.min(100, adminClients.loy[c.phone].stamps/adminClients.loy[c.phone].total*100)}%"></b></i>${adminClients.loy[c.phone].redeemed ? `<span title="cartões completos / prémios ganhos">🎁 ${adminClients.loy[c.phone].redeemed}</span>` : ''}</span>` : ''}</span>
-          <span class="br-svc" style="font-family:var(--mono)">${esc(c.phone)}</span>
+        <div class="brow-main" style="cursor:default;flex-wrap:wrap;row-gap:4px">
+          <span class="br-name" style="flex-basis:calc(100% - 90px);${c.active ? '' : 'text-decoration:line-through;opacity:.6'}">${esc(c.name)}</span>
           <span class="badge ${c.active && !blocked ? 'confirmed' : 'pending'}" style="margin:0;font-size:10px">${!c.active ? 'INACTIVO' : blocked ? 'BLOQUEADO' : 'ACTIVO'}</span>
+          <span class="phone" style="flex-basis:100%;display:flex;align-items:center;gap:10px"><span style="font-family:var(--mono)">${esc(c.phone)}</span>${state.settings.loyalty.enabled && adminClients.loy && adminClients.loy[c.phone] ? `<span class="loy-mini" style="margin:0" title="${esc(state.settings.loyalty.name)}">✂ ${adminClients.loy[c.phone].stamps}/${adminClients.loy[c.phone].total}<i><b style="width:${Math.min(100, adminClients.loy[c.phone].stamps/adminClients.loy[c.phone].total*100)}%"></b></i>${adminClients.loy[c.phone].redeemed ? `<span title="cartões completos / prémios ganhos">🎁 ${adminClients.loy[c.phone].redeemed}</span>` : ''}</span>` : ''}</span>
         </div>
-        <div class="brow-more" style="display:flex;gap:6px;flex-wrap:wrap">
+        <div class="brow-more">
+          ${state.settings.loyalty.enabled ? `<div class="hint" style="margin:0 0 8px;display:flex;align-items:center;gap:6px">Selos por marcação ${[1,2,3].map(n => `<button class="sm ${(c.max_stamps || 1) === n ? 'accent' : ''}" data-ms="${n}" style="padding:4px 10px">${n}</button>`).join('')}</div>` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="sm" data-act="rename">Renomear</button>
-          ${state.settings.loyalty.enabled ? `<span class="hint" style="margin:0;display:inline-flex;align-items:center;gap:4px">selos/marcação ${[1,2,3].map(n => `<button class="sm ${(c.max_stamps || 1) === n ? 'accent' : ''}" data-ms="${n}" style="padding:5px 9px">${n}</button>`).join('')}</span>` : ''}
           <button class="sm ${blocked ? '' : 'danger'}" data-act="block">${blocked ? 'Desbloquear' : 'Bloquear marcações'}</button>
           <button class="sm" data-act="toggle">${c.active ? 'Desactivar' : 'Reactivar'}</button>
           <button class="sm danger" data-act="delete">Eliminar</button>
+          </div>
         </div>
       </div>`; }).join('') : '<div class="empty">Sem clientes.</div>'}
     </div>
@@ -1193,7 +1195,7 @@ function renderAgenda(body){
     ${hoursFor(date).special ? `<div class="hint" style="text-align:center;margin:-6px 0 12px;color:var(--accent);font-weight:600">⏰ Horário especial: ${hoursFor(date).start}–${hoursFor(date).end}${hoursFor(date).breaks.map(br => ` · pausa ${br.start}–${br.end}`).join('')}</div>` : ''}
     ${(admin.waitCounts && admin.waitCounts[date]) ? `<button class="wait-banner" id="ag-wait">⏳ ${admin.waitCounts[date]} em lista de espera para este dia <span>ver ›</span></button>` : ''}
     <button class="ghost" id="ag-new" style="border-color:rgba(201,161,74,.4);color:var(--accent);font-size:13px">+ Nova marcação neste dia</button>
-    <p class="hint">${dayB.length ? 'Clica numa marcação para ver/editar · ' : 'Sem marcações neste dia · '}duplo clique num espaço vazio para marcar à hora certa desse intervalo.</p>
+    <p class="hint">${dayB.length ? 'Clica numa marcação para ver/editar · ' : 'Sem marcações neste dia · '}duplo clique num espaço vazio para marcar à hora ou meia hora desse intervalo.</p>
     ${grid}
     ${pastCount ? `<div style="margin-top:18px"><button class="ghost danger" id="ag-clear" style="font-size:13px">Apagar marcações de dias anteriores (${pastCount})</button></div>` : ''}</div>`;
 
@@ -1209,7 +1211,7 @@ function renderAgenda(body){
   const gridEl = $('#grid');
   if (gridEl){
     // duplo clique (rato) ou duplo toque (dedo) em espaço vazio → nova marcação nessa hora
-    const openAt = clientY => { const rect = gridEl.getBoundingClientRect(); const min = Math.floor((gs + (clientY - rect.top) / PX_PER_MIN) / 60) * 60; openNewBooking(date, minToTime(Math.min(endMin - 15, Math.max(startMin, min)))); };
+    const openAt = clientY => { const rect = gridEl.getBoundingClientRect(); const min = Math.floor((gs + (clientY - rect.top) / PX_PER_MIN) / 30) * 30; openNewBooking(date, minToTime(Math.min(endMin - 15, Math.max(startMin, min)))); };
     gridEl.addEventListener('dblclick', e => { if (!e.target.closest('.block')) openAt(e.clientY); });
     let lastTap = 0, lastY = 0;
     gridEl.addEventListener('pointerup', e => {
